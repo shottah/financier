@@ -1,0 +1,34 @@
+# Dependencies
+node_modules/
+
+# Next.js build output
+.next/
+out/
+
+# Production
+build/
+dist/
+
+# Misc
+.DS_Store
+*.pem
+
+# Cache
+cache/
+.cache/
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# Prisma
+prisma/migrations/
+
+# Generated files
+*.generated.ts
+generated/
+
+# Lock files
+yarn.lock
+package-lock.json
+pnpm-lock.yaml

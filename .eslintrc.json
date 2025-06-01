@@ -1,0 +1,17 @@
+{
+  "extends": [
+    "next/core-web-vitals"
+  ],
+  "rules": {
+    "@typescript-eslint/no-explicit-any": "off",
+    "@typescript-eslint/no-unused-vars": "off",
+    "@typescript-eslint/no-require-imports": "off",
+    "import/order": "off",
+    "react-hooks/exhaustive-deps": "off",
+    "quotes": "off",
+    "comma-dangle": "off",
+    "no-multiple-empty-lines": "off",
+    "arrow-parens": "off",
+    "curly": "off"
+  }
+}
