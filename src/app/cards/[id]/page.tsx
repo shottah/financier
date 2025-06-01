@@ -1,11 +1,13 @@
 import { FileText, Upload, Calendar, Hash, CreditCard as CreditCardIcon, Activity, DollarSign, TrendingUp, Percent } from 'lucide-react'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
+import { auth } from '@clerk/nextjs/server'
 
 import { RefreshableFileUpload } from '@/components/RefreshableFileUpload'
 import { StatementList } from '@/components/StatementList'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Card as CardType } from '@/types'
+import { db } from '@/db'
+import { getCurrentUser } from '@/lib/auth'
 
 interface Props {
   params: Promise<{
@@ -13,27 +15,27 @@ interface Props {
   }>
 }
 
-async function getCard(id: string): Promise<CardType | null> {
-  try {
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
-    const response = await fetch(`${baseUrl}/api/cards/${id}`, {
-      cache: 'no-store', // Ensure fresh data on each request
-    })
-    
-    if (!response.ok) {
-      return null
-    }
-    
-    return response.json()
-  } catch (error) {
-    console.error('Failed to fetch card:', error)
-    return null
-  }
-}
-
 export default async function CardDetail({ params }: Props) {
+  const user = await getCurrentUser()
+  
+  if (!user) {
+    redirect('/sign-in')
+  }
+
   const { id } = await params
-  const card = await getCard(id)
+  
+  // Fetch card directly from database
+  const card = await db.card.findUnique({
+    where: { 
+      id,
+      userId: user.id 
+    },
+    include: {
+      statements: {
+        orderBy: { statementDate: 'desc' },
+      },
+    },
+  })
 
   if (!card) {
     notFound()
@@ -50,7 +52,7 @@ export default async function CardDetail({ params }: Props) {
 
   // Get the most recent processed statement for current balance
   const latestProcessedStatement = card.statements?.find(s => s.status === 'PROCESSED')
-  const currentBalance = latestProcessedStatement?.endingBalance || 0
+  const currentBalance = latestProcessedStatement?.endBalance || 0
 
   return (
     <div className="container mx-auto p-8">
@@ -114,7 +116,7 @@ export default async function CardDetail({ params }: Props) {
                 <p className="text-muted-foreground flex items-center gap-1">
                   <Percent className="h-3 w-3" /> APR
                 </p>
-                <p className="font-medium">{card.apr || 'N/A'}</p>
+                <p className="font-medium">N/A</p>
               </div>
             </div>
 
@@ -122,11 +124,11 @@ export default async function CardDetail({ params }: Props) {
             <div className="space-y-2 pt-2 border-t">
               <div className="text-sm">
                 <p className="text-muted-foreground">Credit Limit</p>
-                <p className="font-medium">${card.creditLimit?.toFixed(2) || 'N/A'}</p>
+                <p className="font-medium">N/A</p>
               </div>
               <div className="text-sm">
                 <p className="text-muted-foreground">Card Issuer</p>
-                <p className="font-medium">{card.issuer || 'Unknown'}</p>
+                <p className="font-medium">Unknown</p>
               </div>
             </div>
           </div>

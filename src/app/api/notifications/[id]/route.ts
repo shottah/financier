@@ -1,6 +1,6 @@
 import { PrismaClient } from '@prisma/client'
-import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
+import { requireUser } from '@/lib/auth'
 
 const prisma = new PrismaClient()
 
@@ -16,17 +16,14 @@ export async function PATCH(
   { params }: RouteParams
 ) {
   try {
+    const user = await requireUser()
     const { id } = await params
     const body = await request.json()
     const { read } = body
     
-    // Get userId from cookie
-    const cookieStore = await cookies()
-    const userId = cookieStore.get('userId')?.value || 'default-user'
-    
     // Verify the notification belongs to the user
     const notification = await prisma.notification.findFirst({
-      where: { id, userId },
+      where: { id, userId: user.id },
     })
     
     if (!notification) {
@@ -45,6 +42,9 @@ export async function PATCH(
     return NextResponse.json(updatedNotification)
   } catch (error) {
     console.error('Failed to update notification:', error)
+    if (error instanceof Error && error.message === 'Unauthorized') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
     return NextResponse.json(
       { error: 'Failed to update notification' },
       { status: 500 }
@@ -58,15 +58,12 @@ export async function DELETE(
   { params }: RouteParams
 ) {
   try {
+    const user = await requireUser()
     const { id } = await params
-    
-    // Get userId from cookie
-    const cookieStore = await cookies()
-    const userId = cookieStore.get('userId')?.value || 'default-user'
     
     // Verify the notification belongs to the user
     const notification = await prisma.notification.findFirst({
-      where: { id, userId },
+      where: { id, userId: user.id },
     })
     
     if (!notification) {
@@ -84,6 +81,9 @@ export async function DELETE(
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error('Failed to delete notification:', error)
+    if (error instanceof Error && error.message === 'Unauthorized') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
     return NextResponse.json(
       { error: 'Failed to delete notification' },
       { status: 500 }

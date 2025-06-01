@@ -1,18 +1,14 @@
-import { readFile } from 'fs/promises'
-import path from 'path'
-
-import { PrismaClient } from '@prisma/client'
 import { NextRequest, NextResponse } from 'next/server'
-
+import { db } from '@/db'
+import { requireUser } from '@/lib/auth'
 import { notifyStatementProcessed } from '@/lib/notifications'
-
-const prisma = new PrismaClient()
 
 // Background processing function
 async function processStatementInBackground(
   statementId: string,
   dataBuffer: Buffer,
   fileName: string,
+  userId: string,
   useAI: boolean = true,
   aiProvider: 'claude' | 'openai' = 'openai',
   forceReprocess: boolean = false
@@ -69,7 +65,7 @@ async function processStatementInBackground(
       .reduce((sum, t) => sum + t.amount, 0)
     
     // Update statement with extracted data
-    await prisma.statement.update({
+    await db.statement.update({
       where: { id: statementId },
       data: {
         status: 'PROCESSED',
@@ -93,12 +89,12 @@ async function processStatementInBackground(
       statementId,
     }))
     
-    await prisma.transaction.createMany({
+    await db.transaction.createMany({
       data: transactionData,
     })
     
     // Get statement with card info for the notification
-    const statement = await prisma.statement.findUnique({
+    const statement = await db.statement.findUnique({
       where: { id: statementId },
       include: { card: true },
     })
@@ -110,19 +106,20 @@ async function processStatementInBackground(
         cardName: statement.card.name,
         cardLastFour: statement.card.lastFour || undefined,
         success: true,
+        userId,
       })
     }
   } catch (error) {
     console.error('Background processing failed:', error)
     
     // Update status to failed
-    await prisma.statement.update({
+    await db.statement.update({
       where: { id: statementId },
       data: { status: 'FAILED' },
     })
     
     // Get statement with card info for the notification
-    const statement = await prisma.statement.findUnique({
+    const statement = await db.statement.findUnique({
       where: { id: statementId },
       include: { card: true },
     })
@@ -134,6 +131,7 @@ async function processStatementInBackground(
         cardLastFour: statement.card.lastFour || undefined,
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
+        userId,
       })
     }
   }
@@ -144,41 +142,56 @@ export async function POST(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const user = await requireUser()
     const { id } = await context.params
     const body = await request.json().catch(() => ({}))
     const useAI = body.useAI !== false // Default to true
     const aiProvider = body.aiProvider || 'openai' // Default to openai
     const isReprocess = body.reprocess || false
 
-    // Get the statement with card info
-    const statement = await prisma.statement.findUnique({
+    // Get the statement with card info and verify ownership
+    const statement = await db.statement.findUnique({
       where: { id },
-      include: { card: true },
+      include: { 
+        card: {
+          include: {
+            user: true
+          }
+        } 
+      },
     })
 
     if (!statement) {
       return NextResponse.json({ error: 'Statement not found' }, { status: 404 })
     }
 
+    if (statement.card.userId !== user.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+    }
+
     // If reprocessing, delete existing transactions
     if (isReprocess && statement.status === 'PROCESSED') {
-      await prisma.transaction.deleteMany({
+      await db.transaction.deleteMany({
         where: { statementId: id },
       })
     }
 
     // Update status to processing
-    await prisma.statement.update({
+    await db.statement.update({
       where: { id },
       data: { status: 'PROCESSING' },
     })
 
-    // Read the PDF file
-    const filePath = path.join(process.cwd(), 'public', statement.filePath)
-    const dataBuffer = await readFile(filePath)
+    // Fetch the PDF file from Vercel Blob
+    const response = await fetch(statement.filePath)
+    if (!response.ok) {
+      throw new Error('Failed to fetch PDF from blob storage')
+    }
+    const arrayBuffer = await response.arrayBuffer()
+    const dataBuffer = Buffer.from(arrayBuffer)
 
     // Start background processing (non-blocking)
-    processStatementInBackground(id, dataBuffer, statement.fileName, useAI, aiProvider, isReprocess)
+    processStatementInBackground(id, dataBuffer, statement.fileName, user.id, useAI, aiProvider, isReprocess)
       .catch(error => {
         console.error('Failed to start background processing:', error)
       })
@@ -196,6 +209,9 @@ export async function POST(
     )
   } catch (error) {
     console.error('Failed to start processing:', error)
+    if (error instanceof Error && error.message === 'Unauthorized') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
     return NextResponse.json({ error: 'Failed to start processing' }, { status: 500 })
   }
 }

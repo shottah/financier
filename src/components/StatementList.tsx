@@ -11,7 +11,7 @@ import {
   ColumnFiltersState,
 } from '@tanstack/react-table'
 import { format } from 'date-fns'
-import { FileText, DollarSign, CalendarDays, Loader2, MoreVertical, Eye, Pencil, Trash, ArrowUpDown, ChevronDown, RefreshCw, Search, Filter } from 'lucide-react'
+import { FileText, DollarSign, CalendarDays, Loader2, MoreVertical, Eye, Pencil, Trash, ArrowUpDown, ChevronDown, RefreshCw, Search, Filter, Download } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
@@ -286,8 +286,18 @@ export function StatementList({ statements }: StatementListProps) {
                 <DropdownMenuItem asChild>
                   <Link href={`/statements/${statement.id}`}>
                     <Eye className="h-4 w-4 mr-2" />
-                    View
+                    View Details
                   </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <a 
+                    href={`/api/statements/${statement.id}/download`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Download PDF
+                  </a>
                 </DropdownMenuItem>
                 {statement.status === 'PROCESSED' && (
                   <DropdownMenuItem 

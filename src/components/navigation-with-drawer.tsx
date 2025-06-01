@@ -16,6 +16,7 @@ import {
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useState, useEffect } from 'react'
+import { UserButton, useUser } from '@clerk/nextjs'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -278,6 +279,8 @@ export function NavigationWithDrawer() {
               <span className="hidden sm:inline">Add Card</span>
             </Link>
           </Button>
+          
+          <UserButton afterSignOutUrl="/sign-in" />
         </div>
       </div>
     </div>

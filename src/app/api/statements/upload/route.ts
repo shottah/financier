@@ -1,33 +1,32 @@
-import { writeFile } from 'fs/promises'
-import path from 'path'
-
-import { PrismaClient } from '@prisma/client'
 import { NextRequest, NextResponse } from 'next/server'
-
+import { put } from '@vercel/blob'
+import { db } from '@/db'
+import { requireUser } from '@/lib/auth'
 import { notifyStatementUploaded } from '@/lib/notifications'
-
-const prisma = new PrismaClient()
-const uploadDir = path.join(process.cwd(), 'public', 'uploads')
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await requireUser()
     const contentType = request.headers.get('content-type')
     
     let cardId: string
     let fileName: string
-    let filePath: string
-    let fileData: Buffer | null = null
+    let blobUrl: string
+    let fileSize: number | undefined
+    let mimeType: string | undefined
     
     if (contentType?.includes('application/json')) {
       // Handle JSON request (for creating statement records without file upload)
       const body = await request.json()
       cardId = body.cardId
       fileName = body.fileName
-      filePath = body.filePath
+      blobUrl = body.blobUrl || body.filePath // Support both for backwards compatibility
+      fileSize = body.fileSize
+      mimeType = body.mimeType
       
-      if (!cardId || !fileName || !filePath) {
+      if (!cardId || !fileName || !blobUrl) {
         return NextResponse.json({ 
-          error: 'cardId, fileName, and filePath are required' 
+          error: 'cardId, fileName, and blobUrl are required' 
         }, { status: 400 })
       }
     } else {
@@ -42,28 +41,48 @@ export async function POST(request: NextRequest) {
         }, { status: 400 })
       }
       
-      // Create a unique filename
-      const timestamp = Date.now()
-      const ext = path.extname(file.name)
+      // Prepare file for Vercel Blob upload
       fileName = file.name
-      const filename = `${cardId}_${timestamp}${ext}`
-      filePath = `/uploads/${filename}`
+      fileSize = file.size
+      mimeType = file.type || 'application/pdf'
       
-      // Get file data for saving
-      const bytes = await file.arrayBuffer()
-      fileData = Buffer.from(bytes)
+      const timestamp = Date.now()
+      const ext = fileName.split('.').pop() || 'pdf'
+      const blobFileName = `statements/${user.id}/${cardId}/${timestamp}.${ext}`
       
-      // Save file
-      const fullPath = path.join(uploadDir, filename)
-      await writeFile(fullPath, fileData)
+      // Upload to Vercel Blob
+      const blob = await put(blobFileName, file, {
+        access: 'public',
+        addRandomSuffix: false,
+        contentType: mimeType,
+      })
+      
+      blobUrl = blob.url
+    }
+
+    // Verify the card belongs to the user
+    const card = await db.card.findFirst({
+      where: {
+        id: cardId,
+        userId: user.id
+      }
+    })
+
+    if (!card) {
+      return NextResponse.json({ 
+        error: 'Card not found or unauthorized' 
+      }, { status: 404 })
     }
 
     // Create statement record
-    const statement = await prisma.statement.create({
+    const statement = await db.statement.create({
       data: {
         cardId,
         fileName,
-        filePath,
+        filePath: blobUrl, // Store the blob URL in filePath field
+        blobUrl: blobUrl,  // Also store in dedicated blob field
+        fileSize,
+        mimeType,
         status: 'UPLOADED',
       },
       include: {
@@ -76,11 +95,15 @@ export async function POST(request: NextRequest) {
       statementId: statement.id,
       cardName: statement.card.name,
       cardLastFour: statement.card.lastFour || undefined,
+      userId: user.id,
     })
 
     return NextResponse.json(statement, { status: 201 })
   } catch (error) {
     console.error('Upload failed:', error)
+    if (error instanceof Error && error.message === 'Unauthorized') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
     return NextResponse.json({ error: 'Failed to upload file' }, { status: 500 })
   }
 }

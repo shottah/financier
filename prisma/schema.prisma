@@ -10,8 +10,23 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id              String    @id @default(cuid())
+  clerkId         String    @unique
+  email           String    @unique
+  firstName       String?
+  lastName        String?
+  imageUrl        String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  cards           Card[]
+  notifications   Notification[]
+}
+
 model Card {
   id          String      @id @default(cuid())
+  userId      String
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   name        String
   type        String
   lastFour    String?
@@ -26,7 +41,10 @@ model Statement {
   cardId           String
   card             Card        @relation(fields: [cardId], references: [id], onDelete: Cascade)
   fileName         String
-  filePath         String
+  filePath         String      // Stores blob URL or local path for backwards compatibility
+  blobUrl          String?     // Explicit blob URL field for future use
+  fileSize         Int?        // File size in bytes
+  mimeType         String?     @default("application/pdf")
   uploadDate       DateTime    @default(now())
   statementDate    DateTime?
   year             Int?
@@ -36,10 +54,13 @@ model Statement {
   totalDebit       Float?
   totalCredit      Float?
   extractedData    String?     // JSON string for flexible data storage
-  status           String @default("UPLOADED")
+  status           String      @default("UPLOADED")
   transactions     Transaction[]
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt
+  
+  @@index([cardId, statementDate])
+  @@index([status])
 }
 
 model Transaction {
@@ -57,7 +78,8 @@ model Transaction {
 
 model Notification {
   id          String    @id @default(cuid())
-  userId      String    // In a real app, this would relate to a User model
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   type        String    // 'success', 'error', 'info'
   title       String
   description String

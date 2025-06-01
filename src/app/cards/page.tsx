@@ -1,4 +1,4 @@
-import { CreditCard, Plus, Eye, Edit2, Trash2 } from 'lucide-react'
+import { CreditCard, Plus, Eye, Edit2, Trash2, FileText } from 'lucide-react'
 import { MoreVertical } from 'lucide-react'
 import Link from 'next/link'
 import { PrismaClient } from '@prisma/client'

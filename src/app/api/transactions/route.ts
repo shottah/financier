@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { PrismaClient } from '@prisma/client'
+import { requireUser } from '@/lib/auth'
 
 const prisma = new PrismaClient()
 
 export async function GET(request: NextRequest) {
   try {
+    const user = await requireUser()
     const searchParams = request.nextUrl.searchParams
     const cardId = searchParams.get('cardId')
     const category = searchParams.get('category')
@@ -15,8 +17,20 @@ export async function GET(request: NextRequest) {
     const where: any = {}
     
     if (cardId) {
+      // Verify card ownership
+      const card = await prisma.card.findFirst({
+        where: { id: cardId, userId: user.id }
+      })
+      if (!card) {
+        return NextResponse.json({ error: 'Card not found or unauthorized' }, { status: 403 })
+      }
       where.statement = {
         cardId,
+      }
+    } else {
+      // If no cardId, filter to only user's transactions
+      where.statement = {
+        card: { userId: user.id }
       }
     }
     
@@ -51,6 +65,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(transactions)
   } catch (error) {
     console.error('Error fetching transactions:', error)
+    if (error instanceof Error && error.message === 'Unauthorized') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
     return NextResponse.json(
       { error: 'Failed to fetch transactions' },
       { status: 500 }

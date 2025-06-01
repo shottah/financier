@@ -1,27 +1,31 @@
-import { PrismaClient } from '@prisma/client'
 import { NextRequest, NextResponse } from 'next/server'
-
-const prisma = new PrismaClient()
-
-interface RouteParams {
-  params: Promise<{
-    id: string
-  }>
-}
+import { db } from '@/db'
+import { requireUser } from '@/lib/auth'
+import { getStatementFileInfo } from '@/lib/statements'
 
 export async function GET(
   request: NextRequest,
-  { params }: RouteParams
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params
+    const user = await requireUser()
+    const { id } = await context.params
 
-    const statement = await prisma.statement.findUnique({
+    // Get the statement with full details
+    const statement = await db.statement.findUnique({
       where: { id },
       include: {
-        card: true,
+        card: {
+          select: {
+            id: true,
+            name: true,
+            userId: true,
+            type: true,
+            lastFour: true,
+          }
+        },
         transactions: {
-          orderBy: { date: 'asc' }
+          orderBy: { date: 'desc' }
         },
         _count: {
           select: { transactions: true }
@@ -33,31 +37,70 @@ export async function GET(
       return NextResponse.json({ error: 'Statement not found' }, { status: 404 })
     }
 
-    return NextResponse.json(statement)
+    // Verify user owns this statement
+    if (statement.card.userId !== user.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+    }
+
+    // Add file info
+    const fileInfo = getStatementFileInfo(statement)
+
+    return NextResponse.json({
+      ...statement,
+      fileInfo
+    })
   } catch (error) {
-    console.error('Error fetching statement:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    console.error('Failed to get statement:', error)
+    if (error instanceof Error && error.message === 'Unauthorized') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    return NextResponse.json({ error: 'Failed to get statement' }, { status: 500 })
   }
 }
 
 export async function DELETE(
   request: NextRequest,
-  { params }: RouteParams
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params
+    const user = await requireUser()
+    const { id } = await context.params
 
-    // Delete the statement and all related transactions
-    await prisma.statement.delete({
+    // Get the statement to verify ownership
+    const statement = await db.statement.findUnique({
       where: { id },
+      include: {
+        card: {
+          select: {
+            userId: true
+          }
+        }
+      }
     })
 
-    return NextResponse.json({ success: true })
+    if (!statement) {
+      return NextResponse.json({ error: 'Statement not found' }, { status: 404 })
+    }
+
+    if (statement.card.userId !== user.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+    }
+
+    // Delete the statement (transactions will cascade delete)
+    await db.statement.delete({
+      where: { id }
+    })
+
+    // Note: We're not deleting the blob file here
+    // Vercel Blob files can be cleaned up separately if needed
+    // or kept for audit purposes
+
+    return NextResponse.json({ message: 'Statement deleted successfully' })
   } catch (error) {
     console.error('Failed to delete statement:', error)
-    return NextResponse.json(
-      { error: 'Failed to delete statement' },
-      { status: 500 }
-    )
+    if (error instanceof Error && error.message === 'Unauthorized') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    return NextResponse.json({ error: 'Failed to delete statement' }, { status: 500 })
   }
 }

@@ -183,9 +183,10 @@ async function getAnalyticsData() {
 export default async function AnalyticsPage({
   searchParams,
 }: {
-  searchParams: { card?: string, tab?: string }
+  searchParams: Promise<{ card?: string, tab?: string }>
 }) {
   const cards = await getAnalyticsData()
+  const params = await searchParams
   
   // Pre-calculate all data on the server
   const allCardsMetrics = calculateMetrics(cards)
@@ -207,8 +208,8 @@ export default async function AnalyticsPage({
         initialCategoryData={allCardsCategoryData}
         initialTransactions={allCardsTransactions}
         initialStatementData={allCardsStatementData}
-        selectedCard={searchParams.card}
-        selectedTab={searchParams.tab}
+        selectedCard={params.card}
+        selectedTab={params.tab}
       />
     </Suspense>
   )
