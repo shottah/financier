@@ -75,7 +75,13 @@ export default async function CardsPage() {
                         </CardDescription>
                       </div>
                     </div>
-                    <CardActions card={card} />
+                    <CardActions card={{
+                      ...card,
+                      type: card.type.toUpperCase() as 'CREDIT' | 'DEBIT',
+                      lastFour: card.lastFour || undefined,
+                      createdAt: card.createdAt.toISOString(),
+                      updatedAt: card.updatedAt.toISOString(),
+                    }} />
                   </div>
                 </CardHeader>
                 <CardContent>

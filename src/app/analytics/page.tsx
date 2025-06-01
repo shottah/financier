@@ -8,11 +8,11 @@ const prisma = new PrismaClient()
 interface PopulatedCard {
   id: string
   name: string
-  type: string
-  lastFour: string | null
+  type: 'CREDIT' | 'DEBIT'
+  lastFour?: string
   color: string
-  createdAt: Date
-  updatedAt: Date
+  createdAt: string
+  updatedAt: string
   statements: Array<Statement & { transactions: Transaction[] }>
 }
 
@@ -177,7 +177,46 @@ async function getAnalyticsData() {
     }
   })
 
-  return cards as PopulatedCard[]
+  // Convert Prisma types to expected format
+  return cards.map(card => ({
+    id: card.id,
+    name: card.name,
+    type: card.type.toUpperCase() as 'CREDIT' | 'DEBIT',
+    lastFour: card.lastFour || undefined,
+    color: card.color,
+    createdAt: card.createdAt.toISOString(),
+    updatedAt: card.updatedAt.toISOString(),
+    statements: card.statements.map(statement => ({
+      id: statement.id,
+      cardId: statement.cardId,
+      fileName: statement.fileName,
+      filePath: statement.filePath,
+      uploadDate: statement.uploadDate.toISOString(),
+      statementDate: statement.statementDate?.toISOString(),
+      year: statement.year,
+      month: statement.month,
+      startBalance: statement.startBalance,
+      endBalance: statement.endBalance,
+      endingBalance: statement.endBalance, // Map to alternative name
+      totalDebit: statement.totalDebit,
+      totalCredit: statement.totalCredit,
+      extractedData: statement.extractedData,
+      status: statement.status as 'UPLOADED' | 'PROCESSING' | 'PROCESSED' | 'FAILED',
+      createdAt: statement.createdAt.toISOString(),
+      updatedAt: statement.updatedAt.toISOString(),
+      transactions: statement.transactions.map(transaction => ({
+        id: transaction.id,
+        statementId: transaction.statementId,
+        date: transaction.date.toISOString(),
+        description: transaction.description,
+        amount: transaction.amount,
+        type: transaction.type as 'CREDIT' | 'DEBIT',
+        category: transaction.category,
+        createdAt: transaction.createdAt.toISOString(),
+        updatedAt: transaction.updatedAt.toISOString(),
+      }))
+    }))
+  })) as PopulatedCard[]
 }
 
 export default async function AnalyticsPage({

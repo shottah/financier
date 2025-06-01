@@ -163,7 +163,25 @@ export default async function CardDetail({ params }: Props) {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <StatementList statements={card.statements || []} />
+          <StatementList statements={card.statements?.map(statement => ({
+            id: statement.id,
+            cardId: statement.cardId,
+            fileName: statement.fileName,
+            filePath: statement.filePath,
+            uploadDate: statement.uploadDate.toISOString(),
+            statementDate: statement.statementDate?.toISOString(),
+            year: statement.year || undefined,
+            month: statement.month || undefined,
+            startBalance: statement.startBalance || undefined,
+            endBalance: statement.endBalance || undefined,
+            endingBalance: statement.endBalance || undefined,
+            totalDebit: statement.totalDebit || undefined,
+            totalCredit: statement.totalCredit || undefined,
+            extractedData: statement.extractedData || undefined,
+            status: statement.status as 'UPLOADED' | 'PROCESSING' | 'PROCESSED' | 'FAILED',
+            createdAt: statement.createdAt.toISOString(),
+            updatedAt: statement.updatedAt.toISOString(),
+          })) || []} />
         </CardContent>
       </Card>
     </div>
