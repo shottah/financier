@@ -103,8 +103,8 @@ async function processStatementInBackground(
     if (statement) {
       await notifyStatementProcessed({
         statementId,
-        cardName: statement.card.name,
-        cardLastFour: statement.card.lastFour || undefined,
+        cardName: statement.card?.name || 'Unknown Card',
+        cardLastFour: statement.card?.lastFour || undefined,
         success: true,
         userId,
       })
@@ -127,8 +127,8 @@ async function processStatementInBackground(
     if (statement) {
       await notifyStatementProcessed({
         statementId,
-        cardName: statement.card.name,
-        cardLastFour: statement.card.lastFour || undefined,
+        cardName: statement.card?.name || 'Unknown Card',
+        cardLastFour: statement.card?.lastFour || undefined,
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
         userId,
@@ -165,7 +165,7 @@ export async function POST(
       return NextResponse.json({ error: 'Statement not found' }, { status: 404 })
     }
 
-    if (statement.card.userId !== user.id) {
+    if (statement.card?.userId !== user.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }
 

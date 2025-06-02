@@ -27,7 +27,7 @@ export async function GET(
       return NextResponse.json({ error: 'Statement not found' }, { status: 404 })
     }
 
-    if (statement.card.userId !== user.id) {
+    if (statement.card?.userId !== user.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }
 
