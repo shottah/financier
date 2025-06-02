@@ -6,6 +6,7 @@ import { useDropzone } from 'react-dropzone'
 
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
+import { Progress } from '@/components/ui/progress'
 import { cn } from '@/lib/utils'
 
 interface FileUploadProps {
@@ -17,6 +18,8 @@ export function FileUpload({ cardId, onUploadComplete }: FileUploadProps) {
   const [files, setFiles] = useState<File[]>([])
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [uploadProgress, setUploadProgress] = useState(0)
+  const [completedUploads, setCompletedUploads] = useState(0)
 
   const onDrop = (acceptedFiles: File[]) => {
     setFiles(prev => [...prev, ...acceptedFiles])
@@ -34,10 +37,13 @@ export function FileUpload({ cardId, onUploadComplete }: FileUploadProps) {
 
     setUploading(true)
     setError(null)
+    setUploadProgress(0)
+    setCompletedUploads(0)
     
     try {
       // Upload files one by one
-      for (const file of files) {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i]
         const formData = new FormData()
         formData.append('file', file)
         formData.append('cardId', cardId)
@@ -50,6 +56,11 @@ export function FileUpload({ cardId, onUploadComplete }: FileUploadProps) {
         if (!response.ok) {
           throw new Error(`Failed to upload ${file.name}`)
         }
+
+        // Update progress after each successful upload
+        const completed = i + 1
+        setCompletedUploads(completed)
+        setUploadProgress((completed / files.length) * 100)
       }
 
       setFiles([])
@@ -59,6 +70,8 @@ export function FileUpload({ cardId, onUploadComplete }: FileUploadProps) {
       console.error('Upload error:', error)
     } finally {
       setUploading(false)
+      setUploadProgress(0)
+      setCompletedUploads(0)
     }
   }
 
@@ -103,27 +116,47 @@ export function FileUpload({ cardId, onUploadComplete }: FileUploadProps) {
 
       {/* Upload Button - Shows when files are selected */}
       {files.length > 0 && (
-        <div className="flex justify-between items-center">
-          <span className="text-sm text-muted-foreground">
-            {files.length} file{files.length !== 1 ? 's' : ''} selected
-          </span>
-          <Button 
-            onClick={uploadFiles} 
-            disabled={uploading}
-            size="sm"
-          >
-            {uploading ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Uploading...
-              </>
-            ) : (
-              <>
-                <Upload className="h-4 w-4 mr-2" />
-                Upload All
-              </>
-            )}
-          </Button>
+        <div className="space-y-3">
+          <div className="flex justify-between items-center">
+            <span className="text-sm text-muted-foreground">
+              {files.length} file{files.length !== 1 ? 's' : ''} selected
+            </span>
+            <Button 
+              onClick={uploadFiles} 
+              disabled={uploading}
+              size="sm"
+            >
+              {uploading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Uploading...
+                </>
+              ) : (
+                <>
+                  <Upload className="h-4 w-4 mr-2" />
+                  Upload All
+                </>
+              )}
+            </Button>
+          </div>
+          
+          {/* Progress bar and counter - Shows during upload */}
+          {uploading && (
+            <div className="space-y-2">
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-muted-foreground">
+                  Uploading {completedUploads} of {files.length} files
+                </span>
+                <span className="text-muted-foreground">
+                  {Math.round(uploadProgress)}%
+                </span>
+              </div>
+              <Progress 
+                value={uploadProgress} 
+                className="h-2"
+              />
+            </div>
+          )}
         </div>
       )}
 

@@ -6,6 +6,7 @@ import { Trash2, User, CreditCard, FileText, Bell, Shield, AlertTriangle, CheckC
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Progress } from '@/components/ui/progress'
 import {
   Dialog,
   DialogContent,
@@ -23,6 +24,8 @@ export default function SettingsPage() {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false)
   const [deleteType, setDeleteType] = useState<string>('')
   const [isDeleting, setIsDeleting] = useState(false)
+  const [deleteProgress, setDeleteProgress] = useState(0)
+  const [deletionStatus, setDeletionStatus] = useState<string>('')
   const [stats, setStats] = useState<any>(null)
   const [isReprocessing, setIsReprocessing] = useState(false)
   const [reprocessModalOpen, setReprocessModalOpen] = useState(false)
@@ -53,15 +56,43 @@ export default function SettingsPage() {
 
   const confirmDelete = async () => {
     setIsDeleting(true)
+    setDeleteProgress(0)
+    setDeletionStatus('Initializing deletion...')
     
     try {
-      const response = await fetch(`/api/user/delete`, {
+      // Simulate progress steps for better UX
+      const progressSteps = [
+        { progress: 20, status: 'Analyzing data to delete...' },
+        { progress: 40, status: 'Removing transactions...' },
+        { progress: 60, status: 'Removing statements...' },
+        { progress: 80, status: 'Finalizing deletion...' }
+      ]
+      
+      // Start the deletion request
+      const deletePromise = fetch(`/api/user/delete`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ deleteType }),
       })
-
+      
+      // Simulate progress updates
+      for (const step of progressSteps) {
+        setDeleteProgress(step.progress)
+        setDeletionStatus(step.status)
+        await new Promise(resolve => setTimeout(resolve, 500))
+      }
+      
+      // Wait for the actual deletion to complete
+      const response = await deletePromise
+      
       if (!response.ok) throw new Error('Delete failed')
+      
+      // Complete the progress
+      setDeleteProgress(100)
+      setDeletionStatus('Deletion completed!')
+      
+      // Small delay to show completion
+      await new Promise(resolve => setTimeout(resolve, 500))
       
       // Show success notification
       toast({
@@ -81,6 +112,8 @@ export default function SettingsPage() {
       })
     } finally {
       setIsDeleting(false)
+      setDeleteProgress(0)
+      setDeletionStatus('')
       setDeleteModalOpen(false)
     }
   }
@@ -408,6 +441,25 @@ export default function SettingsPage() {
                 This action cannot be undone.
               </DialogDescription>
             </DialogHeader>
+            
+            {/* Progress section - only shown during deletion */}
+            {isDeleting && (
+              <div className="space-y-3 py-4">
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-muted-foreground">
+                    {deletionStatus}
+                  </span>
+                  <span className="text-muted-foreground">
+                    {Math.round(deleteProgress)}%
+                  </span>
+                </div>
+                <Progress 
+                  value={deleteProgress} 
+                  className="h-2"
+                />
+              </div>
+            )}
+            
             <DialogFooter>
               <Button
                 variant="outline"
@@ -421,7 +473,14 @@ export default function SettingsPage() {
                 onClick={confirmDelete}
                 disabled={isDeleting}
               >
-                {isDeleting ? 'Deleting...' : 'Delete'}
+                {isDeleting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  'Delete'
+                )}
               </Button>
             </DialogFooter>
           </DialogContent>
