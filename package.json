@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "build:prod": "ESLINT_CONFIG_FILE=.eslintrc.build.json next build",
-    "postinstall": "prisma generate",
+    "postinstall": "prisma generate && prisma migrate deploy",
     "start": "next start",
     "lint": "next lint",
     "lint:fix": "next lint --fix",
