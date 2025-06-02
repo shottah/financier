@@ -38,7 +38,7 @@ export async function GET(
     }
 
     // Verify user owns this statement
-    if (statement.card?.userId !== user.id) {
+    if ((statement as any).card?.userId !== user.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }
 

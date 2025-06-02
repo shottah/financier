@@ -42,16 +42,16 @@ export default async function CardDetail({ params }: Props) {
   }
 
   // Calculate total spending from all statements
-  const totalSpending = card.statements?.reduce((sum, statement) => 
+  const totalSpending = (card as any).statements?.reduce((sum: number, statement: any) => 
     sum + (statement.totalDebit || 0), 0) || 0
   
   // Calculate average monthly spending
-  const monthlyAverage = card.statements && card.statements.length > 0 
-    ? totalSpending / card.statements.length 
+  const monthlyAverage = (card as any).statements && (card as any).statements.length > 0 
+    ? totalSpending / (card as any).statements.length 
     : 0
 
   // Get the most recent processed statement for current balance
-  const latestProcessedStatement = card.statements?.find(s => s.status === 'PROCESSED')
+  const latestProcessedStatement = (card as any).statements?.find((s: any) => s.status === 'PROCESSED')
   const currentBalance = latestProcessedStatement?.endBalance || 0
 
   return (
@@ -82,15 +82,15 @@ export default async function CardDetail({ params }: Props) {
                 <p className="text-muted-foreground flex items-center gap-1">
                   <FileText className="h-3 w-3" /> Statements
                 </p>
-                <p className="font-medium">{card.statements?.length || 0}</p>
+                <p className="font-medium">{(card as any).statements?.length || 0}</p>
               </div>
               <div className="text-sm">
                 <p className="text-muted-foreground flex items-center gap-1">
                   <Calendar className="h-3 w-3" /> Last Upload
                 </p>
                 <p className="font-medium">
-                  {card.statements && card.statements.length > 0 
-                    ? new Date(card.statements[0].uploadDate).toLocaleDateString()
+                  {(card as any).statements && (card as any).statements.length > 0 
+                    ? new Date((card as any).statements[0].uploadDate).toLocaleDateString()
                     : 'Never'}
                 </p>
               </div>
@@ -163,7 +163,7 @@ export default async function CardDetail({ params }: Props) {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <StatementList statements={card.statements?.map(statement => ({
+          <StatementList statements={(card as any).statements?.map((statement: any) => ({
             id: statement.id,
             cardId: statement.cardId,
             fileName: statement.fileName,
