@@ -2,6 +2,7 @@ import { Suspense } from 'react'
 import { PrismaClient } from '@prisma/client'
 import AnalyticsContent from './analytics-content'
 import { Statement, Transaction } from '@/types'
+import { requireUser } from '@/lib/auth'
 
 const prisma = new PrismaClient()
 
@@ -166,7 +167,10 @@ function getStatementData(cards: PopulatedCard[]) {
 }
 
 async function getAnalyticsData() {
+  const user = await requireUser()
+  
   const cards = await prisma.card.findMany({
+    where: { userId: user.id },
     include: {
       statements: {
         include: {

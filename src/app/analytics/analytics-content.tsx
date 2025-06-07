@@ -1,9 +1,10 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
-import { TrendingUp, TrendingDown, DollarSign, Wallet, Receipt, ArrowUpDown, Download } from 'lucide-react'
+import { TrendingUp, TrendingDown, DollarSign, Wallet, Receipt, ArrowUpDown, Download, ExternalLink } from 'lucide-react'
 import { format } from 'date-fns'
 import { useSearchParams } from 'next/navigation'
+import Link from 'next/link'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, ComposedChart, Line } from 'recharts'
 
 import { AnalyticsTabs } from '@/components/Analytics/AnalyticsTabs'
@@ -682,8 +683,18 @@ function TopMerchantsCard({ transactions }: { transactions: EnhancedTransaction[
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Top Merchants</CardTitle>
-        <CardDescription>Where you spend the most</CardDescription>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle>Top Merchants</CardTitle>
+            <CardDescription>Where you spend the most</CardDescription>
+          </div>
+          <Link href="/analytics/merchants">
+            <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground hover:text-foreground">
+              View All
+              <ExternalLink className="h-4 w-4" />
+            </Button>
+          </Link>
+        </div>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
