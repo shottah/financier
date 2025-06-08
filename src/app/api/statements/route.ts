@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireUser } from '@/lib/auth'
+import { FilterBuilder } from '@/services/filter-builder'
 
 const prisma = new PrismaClient()
 
@@ -10,21 +11,17 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams
     const cardId = searchParams.get('cardId')
     
-    let where: any = {}
-    
+    // If cardId is provided, verify card ownership
     if (cardId) {
-      // Verify card ownership if cardId is provided
       const card = await prisma.card.findFirst({
         where: { id: cardId, userId: user.id }
       })
       if (!card) {
         return NextResponse.json({ error: 'Card not found or unauthorized' }, { status: 403 })
       }
-      where.cardId = cardId
-    } else {
-      // If no cardId, only show user's statements
-      where.card = { userId: user.id }
     }
+    
+    const where = FilterBuilder.statementsByUser(user.id, { cardId: cardId || undefined })
     
     const statements = await prisma.statement.findMany({
       where,

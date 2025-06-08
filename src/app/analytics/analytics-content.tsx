@@ -185,12 +185,14 @@ export default function AnalyticsContent({
             <CategoryPieChart data={categoryData} />
           </div>
           
-          <TopMerchantsCard transactions={recentTransactions} />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <TopMerchantsCard transactions={recentTransactions} />
+            <TopCategoriesCard data={categoryData} />
+          </div>
         </TabsContent>
         
         <TabsContent value="spending" className="space-y-6">
           <StatementInflowsOutflowsChart data={statementData} />
-          <CategoryBreakdownTable data={categoryData} />
         </TabsContent>
         
         <TabsContent value="transactions">
@@ -502,6 +504,22 @@ function StatementInflowsOutflowsChart({ data }: { data: Array<{
       Outflows: Math.round(data.outflows)
     }))
   
+  // Handle bar click to open statement
+  const handleBarClick = (data: any) => {
+    if (data && data.activeLabel) {
+      const monthStatements = sortedData.filter(s => s.month === data.activeLabel)
+      if (monthStatements.length === 1) {
+        // Single statement - open directly
+        window.open(`/statements/${monthStatements[0].id}`, '_blank')
+      } else if (monthStatements.length > 1) {
+        // Multiple statements - you could implement a modal to choose, 
+        // or open the first one, or show all statements for that month
+        // For now, let's open the first statement
+        window.open(`/statements/${monthStatements[0].id}`, '_blank')
+      }
+    }
+  }
+
   // Custom tooltip
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
@@ -521,6 +539,9 @@ function StatementInflowsOutflowsChart({ data }: { data: Array<{
               <span className="font-medium">${entry.value.toLocaleString()}</span>
             </p>
           ))}
+          <p className="text-xs text-muted-foreground mt-2 pt-2 border-t">
+            💡 Click to view statement{monthStatements.length > 1 ? 's' : ''}
+          </p>
         </div>
       )
     }
@@ -587,7 +608,11 @@ function StatementInflowsOutflowsChart({ data }: { data: Array<{
         {data.length > 0 ? (
           <div className="h-80 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
+              <BarChart 
+                data={chartData} 
+                margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
+                onClick={handleBarClick}
+              >
                 <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                 <XAxis 
                   dataKey="month" 
@@ -608,8 +633,18 @@ function StatementInflowsOutflowsChart({ data }: { data: Array<{
                   iconType="square"
                   formatter={(value) => <span className="text-sm text-muted-foreground">{value}</span>}
                 />
-                <Bar dataKey="Inflows" fill="#22c55e" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="Outflows" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                <Bar 
+                  dataKey="Inflows" 
+                  fill="#22c55e" 
+                  radius={[4, 4, 0, 0]}
+                  style={{ cursor: 'pointer' }}
+                />
+                <Bar 
+                  dataKey="Outflows" 
+                  fill="#ef4444" 
+                  radius={[4, 4, 0, 0]}
+                  style={{ cursor: 'pointer' }}
+                />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -625,35 +660,6 @@ function StatementInflowsOutflowsChart({ data }: { data: Array<{
   )
 }
 
-function CategoryBreakdownTable({ data }: { data: Array<{name: string, amount: number, count: number, percentage: number, color: string}> }) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Category Details</CardTitle>
-        <CardDescription>Detailed breakdown by spending category</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
-          {data.map((category, index) => (
-            <div key={index} className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-4 h-4 rounded-full" style={{ backgroundColor: category.color }} />
-                <div>
-                  <p className="font-medium">{category.name}</p>
-                  <p className="text-sm text-muted-foreground">{category.count} transactions</p>
-                </div>
-              </div>
-              <div className="text-right">
-                <p className="font-medium">${category.amount.toFixed(2)}</p>
-                <p className="text-sm text-muted-foreground">{category.percentage}%</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
 
 interface EnhancedTransaction extends Transaction {
   cardName: string
@@ -710,6 +716,52 @@ function TopMerchantsCard({ transactions }: { transactions: EnhancedTransaction[
             ))
           ) : (
             <p className="text-muted-foreground text-center">No transaction data available</p>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+function TopCategoriesCard({ data }: { data: Array<{name: string, amount: number, count: number, percentage: number, color: string}> }) {
+  const topCategories = data.slice(0, 5)
+  
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle>Top Categories</CardTitle>
+            <CardDescription>Your largest spending categories</CardDescription>
+          </div>
+          <Link href="/analytics/categories">
+            <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground hover:text-foreground">
+              View All
+              <ExternalLink className="h-4 w-4" />
+            </Button>
+          </Link>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-4">
+          {topCategories.length > 0 ? (
+            topCategories.map((category, index) => (
+              <div key={index} className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-4 h-4 rounded-full" style={{ backgroundColor: category.color }} />
+                  <div>
+                    <p className="font-medium">{category.name}</p>
+                    <p className="text-sm text-muted-foreground">{category.count} transactions</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="font-medium">${category.amount.toFixed(2)}</p>
+                  <p className="text-sm text-muted-foreground">{category.percentage}%</p>
+                </div>
+              </div>
+            ))
+          ) : (
+            <p className="text-muted-foreground text-center">No category data available</p>
           )}
         </div>
       </CardContent>

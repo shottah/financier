@@ -1,66 +1,56 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
 import { requireUser } from '@/lib/auth'
-
-const prisma = new PrismaClient()
+import { TransactionService } from '@/services/transaction-service'
 
 export async function GET(request: NextRequest) {
   try {
     const user = await requireUser()
     const searchParams = request.nextUrl.searchParams
     const cardId = searchParams.get('cardId')
+    const merchantId = searchParams.get('merchantId')
     const category = searchParams.get('category')
+    const type = searchParams.get('type') as 'DEBIT' | 'CREDIT' | null
     const startDate = searchParams.get('startDate')
     const endDate = searchParams.get('endDate')
+    const limit = searchParams.get('limit')
+    const offset = searchParams.get('offset')
     
-    // Build where clause
-    const where: any = {}
+    // Build filters object
+    const filters: any = {}
     
     if (cardId) {
-      // Verify card ownership
-      const card = await prisma.card.findFirst({
-        where: { id: cardId, userId: user.id }
-      })
-      if (!card) {
-        return NextResponse.json({ error: 'Card not found or unauthorized' }, { status: 403 })
-      }
-      where.statement = {
-        cardId,
-      }
-    } else {
-      // If no cardId, filter to only user's transactions
-      where.statement = {
-        card: { userId: user.id }
-      }
+      filters.cardId = cardId
+    }
+    
+    if (merchantId) {
+      filters.merchantId = merchantId
     }
     
     if (category) {
-      where.category = category === 'uncategorized' ? null : category
+      filters.category = category === 'uncategorized' ? null : category
     }
     
-    if (startDate || endDate) {
-      where.date = {}
-      if (startDate) {
-        where.date.gte = new Date(startDate)
-      }
-      if (endDate) {
-        where.date.lte = new Date(endDate)
-      }
+    if (type) {
+      filters.type = type
     }
     
-    const transactions = await prisma.transaction.findMany({
-      where,
-      include: {
-        statement: {
-          include: {
-            card: true,
-          },
-        },
-      },
-      orderBy: {
-        date: 'desc',
-      },
-    })
+    if (startDate) {
+      filters.startDate = new Date(startDate)
+    }
+    
+    if (endDate) {
+      filters.endDate = new Date(endDate)
+    }
+    
+    if (limit) {
+      filters.limit = parseInt(limit)
+    }
+    
+    if (offset) {
+      filters.offset = parseInt(offset)
+    }
+    
+    const transactions = await TransactionService.getTransactionsWithCardDetails(user.id, filters)
     
     return NextResponse.json(transactions)
   } catch (error) {
@@ -70,6 +60,85 @@ export async function GET(request: NextRequest) {
     }
     return NextResponse.json(
       { error: 'Failed to fetch transactions' },
+      { status: 500 }
+    )
+  }
+}
+
+export async function PUT(request: NextRequest) {
+  try {
+    const user = await requireUser()
+    const { transactionId, category, merchantId } = await request.json()
+    
+    if (!transactionId) {
+      return NextResponse.json(
+        { error: 'Transaction ID is required' },
+        { status: 400 }
+      )
+    }
+    
+    const updatedTransaction = await TransactionService.updateTransaction(
+      user.id,
+      transactionId,
+      { category, merchantId }
+    )
+    
+    if (!updatedTransaction) {
+      return NextResponse.json(
+        { error: 'Transaction not found or unauthorized' },
+        { status: 404 }
+      )
+    }
+    
+    return NextResponse.json({
+      success: true,
+      transaction: updatedTransaction
+    })
+  } catch (error) {
+    console.error('Error updating transaction:', error)
+    if (error instanceof Error && error.message === 'Unauthorized') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    return NextResponse.json(
+      { error: 'Failed to update transaction' },
+      { status: 500 }
+    )
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const user = await requireUser()
+    const { searchParams } = new URL(request.url)
+    const transactionId = searchParams.get('id')
+    
+    if (!transactionId) {
+      return NextResponse.json(
+        { error: 'Transaction ID is required' },
+        { status: 400 }
+      )
+    }
+    
+    const success = await TransactionService.deleteTransaction(user.id, transactionId)
+    
+    if (!success) {
+      return NextResponse.json(
+        { error: 'Transaction not found or failed to delete' },
+        { status: 404 }
+      )
+    }
+    
+    return NextResponse.json({
+      success: true,
+      message: 'Transaction deleted successfully'
+    })
+  } catch (error) {
+    console.error('Error deleting transaction:', error)
+    if (error instanceof Error && error.message === 'Unauthorized') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    return NextResponse.json(
+      { error: 'Failed to delete transaction' },
       { status: 500 }
     )
   }

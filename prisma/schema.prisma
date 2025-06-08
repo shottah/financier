@@ -20,6 +20,7 @@ model User {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
   cards           Card[]
+  merchants       Merchant[]
   notifications   Notification[]
 }
 
@@ -63,17 +64,36 @@ model Statement {
   @@index([status])
 }
 
+model Merchant {
+  id           String        @id @default(cuid())
+  userId       String
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name         String        // Display name (can be updated by user)
+  billingName  String        // Original name from transaction data
+  category     String?       // Primary category for this merchant
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  transactions Transaction[]
+  
+  @@unique([userId, billingName]) // Ensure unique billing name per user
+  @@index([userId, name])
+}
+
 model Transaction {
   id          String      @id @default(cuid())
   statementId String
   statement   Statement   @relation(fields: [statementId], references: [id], onDelete: Cascade)
+  merchantId  String?
+  merchant    Merchant?   @relation(fields: [merchantId], references: [id], onDelete: SetNull)
   date        DateTime
-  description String
+  description String      // Keep for backwards compatibility and raw data
   amount      Float
   type        String
-  category    String?
+  category    String?     // Transaction-level category (can override merchant category)
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
+  
+  @@index([merchantId])
 }
 
 model Notification {

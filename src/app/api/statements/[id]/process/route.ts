@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/db'
 import { requireUser } from '@/lib/auth'
 import { notifyStatementProcessed } from '@/lib/notifications'
+import { TransactionService } from '@/services/transaction-service'
 
 // Background processing function
 async function processStatementInBackground(
@@ -79,19 +80,17 @@ async function processStatementInBackground(
       },
     })
     
-    // Create transactions
-    const transactionData = transactions.map(transaction => ({
+    // Create transactions with merchant linking using TransactionService
+    const transactionInputs = transactions.map(transaction => ({
       date: transaction.date,
       description: transaction.description,
       amount: transaction.amount,
       type: transaction.type,
       category: transaction.category,
-      statementId,
+      statementId
     }))
     
-    await db.transaction.createMany({
-      data: transactionData,
-    })
+    const createdTransactions = await TransactionService.createTransactions(userId, transactionInputs)
     
     // Get statement with card info for the notification
     const statement = await db.statement.findUnique({

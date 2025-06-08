@@ -1,13 +1,16 @@
-import { FileText, Calendar, CreditCard, DollarSign, ArrowLeft, Download } from 'lucide-react'
+import { FileText, CreditCard, ArrowLeft, ExternalLink } from 'lucide-react'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { format } from 'date-fns'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Statement, Transaction } from '@/types'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import TransactionTableWrapper from './transaction-table-wrapper'
+import { db } from '@/db'
+import { requireUser } from '@/lib/auth'
+import ExportButton from './export-button'
+import DeleteButton from './delete-button'
 
 interface Props {
   params: Promise<{
@@ -15,18 +18,41 @@ interface Props {
   }>
 }
 
-async function getStatement(id: string): Promise<Statement | null> {
+async function getStatement(id: string) {
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
-    const response = await fetch(`${baseUrl}/api/statements/${id}`, {
-      cache: 'no-store',
-    })
+    const user = await requireUser()
     
-    if (!response.ok) {
+    // Get the statement with full details directly from database
+    const statement = await db.statement.findUnique({
+      where: { id },
+      include: {
+        card: {
+          select: {
+            id: true,
+            name: true,
+            userId: true,
+            type: true,
+            lastFour: true,
+            color: true,
+          }
+        },
+        transactions: {
+          orderBy: { date: 'desc' }
+        },
+      }
+    })
+
+    if (!statement) {
       return null
     }
-    
-    return response.json()
+
+    // Verify user owns this statement
+    const statementWithCard = statement as typeof statement & { card: { userId: string } }
+    if (statementWithCard.card.userId !== user.id) {
+      return null
+    }
+
+    return statement
   } catch (error) {
     console.error('Failed to fetch statement:', error)
     return null
@@ -43,11 +69,11 @@ export default async function StatementDetailPage({ params }: Props) {
 
   const transactions = statement.transactions || []
   const totalDebits = transactions
-    .filter(t => t.type === 'DEBIT')
-    .reduce((sum, t) => sum + t.amount, 0)
+    .filter((t: any) => t.type === 'DEBIT')
+    .reduce((sum: number, t: any) => sum + t.amount, 0)
   const totalCredits = transactions
-    .filter(t => t.type === 'CREDIT')
-    .reduce((sum, t) => sum + t.amount, 0)
+    .filter((t: any) => t.type === 'CREDIT')
+    .reduce((sum: number, t: any) => sum + t.amount, 0)
 
   return (
     <div className="container mx-auto p-4 max-w-7xl">
@@ -65,20 +91,28 @@ export default async function StatementDetailPage({ params }: Props) {
       <div className="mb-4">
         <h1 className="text-2xl font-bold">{statement.fileName}</h1>
         <div className="flex items-center gap-4 mt-1">
-          <div className="flex items-center gap-2">
+          <Link 
+            href={`/cards/${statement.cardId}`}
+            className="flex items-center gap-2 hover:bg-muted/50 px-2 py-1 rounded transition-colors cursor-pointer"
+          >
             <div 
               className="w-3 h-3 rounded-full" 
               style={{ backgroundColor: statement.card?.color || '#6B7280' }}
             />
-            <span className="text-sm text-muted-foreground">
+            <span className="text-sm text-muted-foreground hover:text-foreground">
               {statement.card?.name || 'Unknown Card'}
             </span>
             {statement.card?.lastFour && (
-              <span className="text-sm text-muted-foreground">
+              <span className="text-sm text-muted-foreground hover:text-foreground">
                 •••• {statement.card.lastFour}
               </span>
             )}
-          </div>
+            {statement.card?.type && (
+              <Badge variant="outline" className="text-xs ml-1">
+                {statement.card.type}
+              </Badge>
+            )}
+          </Link>
         </div>
       </div>
 
@@ -120,7 +154,7 @@ export default async function StatementDetailPage({ params }: Props) {
               ${totalDebits.toFixed(2)}
             </div>
             <p className="text-xs text-muted-foreground">
-              {transactions.filter(t => t.type === 'DEBIT').length} charges
+              {transactions.filter((t: any) => t.type === 'DEBIT').length} charges
             </p>
           </CardContent>
         </Card>
@@ -132,48 +166,18 @@ export default async function StatementDetailPage({ params }: Props) {
               ${totalCredits.toFixed(2)}
             </div>
             <p className="text-xs text-muted-foreground">
-              {transactions.filter(t => t.type === 'CREDIT').length} credits
+              {transactions.filter((t: any) => t.type === 'CREDIT').length} credits
             </p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Details Section */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
-        {/* Card Information */}
-        <Card>
-          <CardContent className="p-4">
-            <h3 className="font-medium text-sm mb-3 flex items-center gap-2">
-              <CreditCard className="h-4 w-4" />
-              Card Information
-            </h3>
-            <div className="space-y-2">
-              <div className="flex items-center gap-3">
-                <div 
-                  className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
-                  style={{ backgroundColor: statement.card?.color || '#6B7280' }}
-                >
-                  <CreditCard className="h-5 w-5 text-white" />
-                </div>
-                <div className="min-w-0">
-                  <p className="font-medium truncate">{statement.card?.name || 'Unknown Card'}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {statement.card?.type} Card {statement.card?.lastFour && `•••• ${statement.card.lastFour}`}
-                  </p>
-                  {statement.card?.issuer && (
-                    <p className="text-xs text-muted-foreground">{statement.card.issuer}</p>
-                  )}
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Statement Info */}
+      {/* Statement Details */}
+      <div className="mb-4">
         <Card>
           <CardContent className="p-4">
             <h3 className="font-medium text-sm mb-3">Statement Details</h3>
-            <div className="grid grid-cols-2 gap-3 text-sm">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 text-sm">
               <div>
                 <p className="text-xs text-muted-foreground">Upload Date</p>
                 <p className="font-medium text-sm">
@@ -202,6 +206,18 @@ export default async function StatementDetailPage({ params }: Props) {
                   ${(statement.endBalance ?? statement.endingBalance ?? 0).toFixed(2)}
                 </p>
               </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Sum of Debits</p>
+                <p className="font-medium text-sm text-red-600">
+                  ${totalDebits.toFixed(2)}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Sum of Credits</p>
+                <p className="font-medium text-sm text-green-600">
+                  ${totalCredits.toFixed(2)}
+                </p>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -217,60 +233,42 @@ export default async function StatementDetailPage({ params }: Props) {
                 {transactions.length} transactions extracted
               </p>
             </div>
-            <Button variant="outline" size="sm">
-              <Download className="h-4 w-4 mr-2" />
-              Export
-            </Button>
+            <div className="flex gap-2">
+              {(statement.blobUrl || statement.filePath) && (
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  asChild
+                >
+                  <Link 
+                    href={statement.blobUrl || statement.filePath} 
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    View PDF
+                  </Link>
+                </Button>
+              )}
+              <ExportButton 
+                transactions={transactions}
+                fileName={statement.fileName}
+                disabled={transactions.length === 0}
+              />
+              <DeleteButton 
+                statementId={statement.id}
+                cardId={statement.cardId}
+              />
+            </div>
           </div>
         </CardHeader>
-        <CardContent className="px-0 pb-0">
-          {transactions.length === 0 ? (
-            <div className="text-center py-8">
-              <FileText className="h-10 w-10 mx-auto mb-3 text-muted-foreground" />
-              <p className="text-sm text-muted-foreground">No transactions found</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="hover:bg-transparent">
-                    <TableHead className="text-xs h-9">Date</TableHead>
-                    <TableHead className="text-xs h-9">Description</TableHead>
-                    <TableHead className="text-xs h-9">Category</TableHead>
-                    <TableHead className="text-xs h-9 text-right">Amount</TableHead>
-                    <TableHead className="text-xs h-9">Type</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {transactions.map((transaction) => (
-                    <TableRow key={transaction.id} className="hover:bg-muted/50">
-                      <TableCell className="py-2 text-sm">
-                        {format(new Date(transaction.date), 'MMM dd')}
-                      </TableCell>
-                      <TableCell className="py-2 text-sm max-w-[300px] truncate">
-                        <span className="truncate block">{transaction.description}</span>
-                      </TableCell>
-                      <TableCell className="py-2">
-                        <Badge variant="outline" className="text-xs">
-                          {transaction.category || 'Uncategorized'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className={`py-2 text-sm text-right font-medium ${
-                        transaction.type === 'CREDIT' ? 'text-green-600' : 'text-red-600'
-                      }`}>
-                        {transaction.type === 'CREDIT' ? '+' : '-'}${transaction.amount.toFixed(2)}
-                      </TableCell>
-                      <TableCell className="py-2">
-                        <Badge variant={transaction.type === 'CREDIT' ? 'default' : 'secondary'} className="text-xs">
-                          {transaction.type}
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
+        <CardContent>
+          <TransactionTableWrapper
+            transactions={transactions}
+            enableQuickEdit={true}
+            enableEdit={true}
+            pageSize={10}
+          />
         </CardContent>
       </Card>
     </div>

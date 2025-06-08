@@ -17,6 +17,7 @@ async function getMerchantsData() {
       }
     },
     include: {
+      merchant: true, // Include merchant relationship
       statement: {
         include: {
           card: true
@@ -28,45 +29,60 @@ async function getMerchantsData() {
     }
   })
 
-  // Group by merchant (description) and calculate totals
+  // Group by merchant (using merchant relationship or fallback to description)
   const merchantMap = new Map<string, {
+    id: string
     merchant: string
+    billingName: string
     totalSpent: number
     transactionCount: number
     categories: Set<string>
+    primaryCategory: string | null
     transactions: typeof transactions
   }>()
 
   transactions.forEach(transaction => {
-    const merchant = transaction.description.trim()
+    // Use merchant data if available, otherwise fall back to description
+    const merchant = (transaction as any).merchant // TypeScript doesn't recognize the include yet
+    const merchantKey = merchant?.id || `desc_${transaction.description.trim()}`
+    const merchantName = merchant?.name || transaction.description.trim()
+    const billingName = merchant?.billingName || transaction.description.trim()
+    const merchantCategory = merchant?.category
     
-    if (!merchantMap.has(merchant)) {
-      merchantMap.set(merchant, {
-        merchant,
+    if (!merchantMap.has(merchantKey)) {
+      merchantMap.set(merchantKey, {
+        id: merchantKey,
+        merchant: merchantName,
+        billingName: billingName,
         totalSpent: 0,
         transactionCount: 0,
         categories: new Set(),
+        primaryCategory: merchantCategory || null,
         transactions: []
       })
     }
 
-    const merchantData = merchantMap.get(merchant)!
+    const merchantData = merchantMap.get(merchantKey)!
     merchantData.totalSpent += transaction.amount
     merchantData.transactionCount += 1
+    
+    // Collect categories from transactions (for merchants without set categories)
     if (transaction.category) {
       merchantData.categories.add(transaction.category)
     }
+    
     merchantData.transactions.push(transaction)
   })
 
   // Convert to array and format for frontend
   const merchants = Array.from(merchantMap.values()).map(data => ({
-    id: data.merchant, // Use merchant name as ID for uniqueness
+    id: data.id,
     merchant: data.merchant,
+    billingName: data.billingName,
     totalSpent: data.totalSpent,
     transactionCount: data.transactionCount,
     categories: Array.from(data.categories),
-    primaryCategory: data.categories.size > 0 ? Array.from(data.categories)[0] : null,
+    primaryCategory: data.primaryCategory || (data.categories.size > 0 ? Array.from(data.categories)[0] : null),
     transactions: data.transactions.map(tx => ({
       id: tx.id,
       date: tx.date.toISOString(),

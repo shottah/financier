@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/db'
 import { requireUser } from '@/lib/auth'
 import { getStatementFileInfo } from '@/lib/statements'
+import { del } from '@vercel/blob'
 
 export async function GET(
   request: NextRequest,
@@ -22,6 +23,7 @@ export async function GET(
             userId: true,
             type: true,
             lastFour: true,
+            color: true,
           }
         },
         transactions: {
@@ -38,7 +40,8 @@ export async function GET(
     }
 
     // Verify user owns this statement
-    if ((statement as any).card?.userId !== user.id) {
+    const statementWithCard = statement as typeof statement & { card: { userId: string } }
+    if (statementWithCard.card.userId !== user.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }
 
@@ -86,14 +89,22 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }
 
+    // Delete the blob file first
+    try {
+      const urlToDelete = statement.blobUrl || statement.filePath
+      if (urlToDelete) {
+        await del(urlToDelete)
+        console.log(`Deleted blob file: ${urlToDelete}`)
+      }
+    } catch (error) {
+      console.error(`Failed to delete blob file for statement ${id}:`, error)
+      // Continue with database deletion even if blob deletion fails
+    }
+
     // Delete the statement (transactions will cascade delete)
     await db.statement.delete({
       where: { id }
     })
-
-    // Note: We're not deleting the blob file here
-    // Vercel Blob files can be cleaned up separately if needed
-    // or kept for audit purposes
 
     return NextResponse.json({ message: 'Statement deleted successfully' })
   } catch (error) {

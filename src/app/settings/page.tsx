@@ -64,7 +64,7 @@ export default function SettingsPage() {
       const progressSteps = [
         { progress: 20, status: 'Analyzing data to delete...' },
         { progress: 40, status: 'Removing transactions...' },
-        { progress: 60, status: 'Removing statements...' },
+        { progress: 60, status: 'Removing statements and PDF files...' },
         { progress: 80, status: 'Finalizing deletion...' }
       ]
       
@@ -159,13 +159,13 @@ export default function SettingsPage() {
   const getDeleteDescription = (type: string): string => {
     switch (type) {
       case 'all-cards':
-        return 'all cards and their associated statements and transactions'
+        return 'all cards and their associated statements, transactions, and uploaded PDF files'
       case 'all-statements':
-        return 'all statements and their transactions'
+        return 'all statements, their transactions, and uploaded PDF files'
       case 'all-notifications':
         return 'all notifications'
       case 'all-data':
-        return 'ALL data including cards, statements, transactions, and notifications'
+        return 'ALL data including cards, statements, transactions, notifications, and uploaded PDF files'
       default:
         return type.replace('-', ' ')
     }
@@ -308,7 +308,7 @@ export default function SettingsPage() {
                     <div>
                       <p className="font-medium">All Cards</p>
                       <p className="text-sm text-muted-foreground">
-                        This will delete all cards, statements, and transactions
+                        This will delete all cards, statements, transactions, and uploaded PDF files
                       </p>
                     </div>
                   </div>
@@ -321,7 +321,7 @@ export default function SettingsPage() {
               <CardHeader>
                 <CardTitle>Delete Statements</CardTitle>
                 <CardDescription>
-                  Remove all statements and their transactions
+                  Remove all statements, their transactions, and uploaded PDF files
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -331,7 +331,7 @@ export default function SettingsPage() {
                     <div>
                       <p className="font-medium">All Statements</p>
                       <p className="text-sm text-muted-foreground">
-                        This will delete all statements and transactions
+                        This will delete all statements, transactions, and uploaded PDF files
                       </p>
                     </div>
                   </div>
