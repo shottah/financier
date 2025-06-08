@@ -33,7 +33,7 @@ export default function StatementDetailClient({ statement }: StatementDetailClie
 
     const csv = [
       ['Date', 'Description', 'Amount', 'Type', 'Category'],
-      ...exportData.map(row => [
+      ...exportData.map((row: any) => [
         row.date,
         row.description,
         row.amount,
@@ -111,7 +111,7 @@ export default function StatementDetailClient({ statement }: StatementDetailClie
           <CardContent className="p-3">
             <p className="text-xs text-muted-foreground">Amount Owing</p>
             <div className="text-lg font-bold">
-              ${(statement.endBalance ?? statement.endingBalance ?? 0).toFixed(2)}
+              ${(statement.endBalance ?? 0).toFixed(2)}
             </div>
             <p className="text-xs text-muted-foreground">
               Closing balance
@@ -205,7 +205,7 @@ export default function StatementDetailClient({ statement }: StatementDetailClie
               <div>
                 <p className="text-xs text-muted-foreground">Ending Balance</p>
                 <p className="font-medium text-sm">
-                  ${(statement.endBalance ?? statement.endingBalance ?? 0).toFixed(2)}
+                  ${(statement.endBalance ?? 0).toFixed(2)}
                 </p>
               </div>
             </div>

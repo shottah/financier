@@ -47,12 +47,29 @@ async function getStatement(id: string) {
     }
 
     // Verify user owns this statement
-    const statementWithCard = statement as typeof statement & { card: { userId: string } }
+    const statementWithCard = statement as typeof statement & { 
+      card: { 
+        userId: string
+        id: string
+        name: string
+        type: string
+        lastFour: string | null
+        color: string
+      }
+      transactions: Array<{
+        id: string
+        date: Date
+        description: string
+        amount: number
+        type: 'DEBIT' | 'CREDIT'
+        category: string | null
+      }>
+    }
     if (statementWithCard.card.userId !== user.id) {
       return null
     }
 
-    return statement
+    return statementWithCard
   } catch (error) {
     console.error('Failed to fetch statement:', error)
     return null
@@ -139,7 +156,7 @@ export default async function StatementDetailPage({ params }: Props) {
           <CardContent className="p-3">
             <p className="text-xs text-muted-foreground">Amount Owing</p>
             <div className="text-lg font-bold">
-              ${(statement.endBalance ?? statement.endingBalance ?? 0).toFixed(2)}
+              ${(statement.endBalance ?? 0).toFixed(2)}
             </div>
             <p className="text-xs text-muted-foreground">
               Closing balance
@@ -203,7 +220,7 @@ export default async function StatementDetailPage({ params }: Props) {
               <div>
                 <p className="text-xs text-muted-foreground">Ending Balance</p>
                 <p className="font-medium text-sm">
-                  ${(statement.endBalance ?? statement.endingBalance ?? 0).toFixed(2)}
+                  ${(statement.endBalance ?? 0).toFixed(2)}
                 </p>
               </div>
               <div>

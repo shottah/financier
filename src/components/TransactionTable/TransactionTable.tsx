@@ -421,7 +421,7 @@ export default function TransactionTable({
     )
 
     // Add filter function to type column
-    const typeColumnIndex = baseColumns.findIndex(col => col.accessorKey === 'type')
+    const typeColumnIndex = baseColumns.findIndex(col => 'accessorKey' in col && col.accessorKey === 'type')
     if (typeColumnIndex !== -1) {
       baseColumns[typeColumnIndex] = {
         ...baseColumns[typeColumnIndex],

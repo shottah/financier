@@ -6,11 +6,11 @@ import { format } from 'date-fns'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { TransactionTable } from '@/components/TransactionTable'
+import TransactionTable from '@/components/TransactionTable/TransactionTable'
 import { useToast } from '@/hooks/use-toast'
 
 export default function TransactionsPage() {
-  const [transactions, setTransactions] = useState([])
+  const [transactions, setTransactions] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const { toast } = useToast()
 
