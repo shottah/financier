@@ -8,11 +8,15 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { CardActions } from '@/components/Cards/CardActions'
 import { CreateCardDialog } from '@/components/Cards/CreateCardDialog'
+import { requireUser } from '@/lib/auth'
 
 const prisma = new PrismaClient()
 
-async function getCards() {
+async function getCards(userId: string) {
   const cards = await prisma.card.findMany({
+    where: {
+      userId: userId
+    },
     include: {
       _count: {
         select: { statements: true }
@@ -24,7 +28,8 @@ async function getCards() {
 }
 
 export default async function CardsPage() {
-  const cards = await getCards()
+  const user = await requireUser()
+  const cards = await getCards(user.id)
 
   return (
     <div className="container mx-auto p-8">
