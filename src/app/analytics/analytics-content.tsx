@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
-import { TrendingUp, TrendingDown, DollarSign, Wallet, Receipt, ArrowUpDown, Download, ExternalLink } from 'lucide-react'
+import { TrendingUp, TrendingDown, DollarSign, Wallet, Receipt, ArrowUpDown, Download, ExternalLink, Info } from 'lucide-react'
 import { format } from 'date-fns'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
@@ -11,6 +11,7 @@ import { AnalyticsTabs } from '@/components/Analytics/AnalyticsTabs'
 import { CardSelector } from '@/components/Analytics/CardSelector'
 import { TransactionTable } from '@/components/Analytics/TransactionTable'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { TabsContent } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -317,9 +318,15 @@ function MonthlyTrendChart({ data, statementData }: {
     <Card>
       <CardHeader>
         <CardTitle>Monthly Activity</CardTitle>
-        <CardDescription>Charges vs payments over time with amount owing</CardDescription>
+        <CardDescription>Charges vs payments over time with closing balance</CardDescription>
       </CardHeader>
       <CardContent>
+        <Alert className="mb-4">
+          <Info className="h-4 w-4" />
+          <AlertDescription>
+            Data is grouped by calendar month, not statement periods. Multiple statements may contribute to each month&apos;s totals.
+          </AlertDescription>
+        </Alert>
         <div className="h-80 w-full">
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart 
