@@ -55,18 +55,18 @@ function calculateMetrics(cards: PopulatedCard[]) {
 }
 
 function getMonthlyData(cards: PopulatedCard[]) {
-  const monthlyData: Record<string, { income: number, spending: number, endBalance: number }> = {}
+  const monthlyData: Record<string, { income: number, spending: number, startBalance: number }> = {}
   
   cards.forEach(card => {
     card.statements?.forEach(statement => {
       if (statement.year && statement.month) {
         const monthKey = `${statement.year}-${statement.month.toString().padStart(2, '0')}`
         if (!monthlyData[monthKey]) {
-          monthlyData[monthKey] = { income: 0, spending: 0, endBalance: 0 }
+          monthlyData[monthKey] = { income: 0, spending: 0, startBalance: 0 }
         }
         monthlyData[monthKey].income += statement.totalCredit || 0
         monthlyData[monthKey].spending += statement.totalDebit || 0
-        monthlyData[monthKey].endBalance += statement.endBalance || 0
+        monthlyData[monthKey].startBalance += statement.startBalance || 0
       }
     })
   })
