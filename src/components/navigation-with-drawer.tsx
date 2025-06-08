@@ -11,12 +11,16 @@ import {
   AlertCircle, 
   Info,
   Menu,
-  Settings
+  Settings,
+  Home,
+  TrendingUp,
+  Receipt,
+  Folder
 } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useState, useEffect } from 'react'
-import { UserButton, useUser } from '@clerk/nextjs'
+import { UserButton } from '@clerk/nextjs'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -25,6 +29,8 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu'
 import {
   Sheet,
@@ -33,6 +39,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet'
+import { DesktopNavigation } from '@/components/desktop-navigation'
 import { cn } from '@/lib/utils'
 
 interface Notification {
@@ -44,22 +51,42 @@ interface Notification {
   read: boolean
 }
 
-const navItems = [
-  { href: '/', label: 'Cards', icon: CreditCard },
+interface Card {
+  id: string
+  name: string
+  type: string
+  lastFour?: string
+  color: string
+  _count?: {
+    statements: number
+  }
+}
+
+const mainNavItems = [
+  { href: '/', label: 'Dashboard', icon: Home },
+  { href: '/cards', label: 'Cards', icon: CreditCard },
   { href: '/analytics', label: 'Analytics', icon: BarChart },
-  { href: '/transactions', label: 'Transactions', icon: FileText },
+  { href: '/transactions', label: 'Transactions', icon: Receipt },
   { href: '/settings', label: 'Settings', icon: Settings },
+]
+
+const analyticsSubItems = [
+  { href: '/analytics', label: 'Overview', icon: TrendingUp },
+  { href: '/analytics?tab=spending', label: 'Spending Analysis', icon: BarChart },
+  { href: '/analytics/merchants', label: 'Merchants', icon: Folder },
 ]
 
 export function NavigationWithDrawer() {
   const pathname = usePathname()
   const [notifications, setNotifications] = useState<Notification[]>([])
+  const [cards, setCards] = useState<Card[]>([])
   const [loading, setLoading] = useState(true)
   const [isOpen, setIsOpen] = useState(false)
   
-  // Fetch notifications on mount and periodically
+  // Fetch notifications and cards on mount and periodically
   useEffect(() => {
     fetchNotifications()
+    fetchCards()
     
     // Poll for new notifications every 30 seconds
     const interval = setInterval(fetchNotifications, 30000)
@@ -86,6 +113,18 @@ export function NavigationWithDrawer() {
       console.error('Failed to fetch notifications:', error)
     } finally {
       setLoading(false)
+    }
+  }
+  
+  const fetchCards = async () => {
+    try {
+      const response = await fetch('/api/cards')
+      if (response.ok) {
+        const data = await response.json()
+        setCards(data)
+      }
+    } catch (error) {
+      console.error('Failed to fetch cards:', error)
     }
   }
   
@@ -211,78 +250,146 @@ export function NavigationWithDrawer() {
   )
 
   return (
-    <div className="border-b">
-      <div className="flex h-16 items-center px-4 container mx-auto">
-        {/* Hamburger Menu Button - Always visible */}
-        <Sheet open={isOpen} onOpenChange={setIsOpen}>
-          <SheetTrigger asChild>
-            <Button variant="ghost" size="icon">
-              <Menu className="h-5 w-5" />
-              <span className="sr-only">Toggle menu</span>
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="left" className="w-[280px] sm:w-[350px]">
-            <SheetHeader className="pb-6 border-b">
-              <SheetTitle>
-                <div className="flex items-center space-x-2">
-                  <CreditCard className="h-6 w-6 text-primary" />
-                  <span>Bank Analyzer</span>
-                </div>
-              </SheetTitle>
-            </SheetHeader>
-            <nav className="flex flex-col gap-2 mt-6">
-              {navItems.map((item) => {
-                const Icon = item.icon
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={() => setIsOpen(false)}
-                    className={cn(
-                      'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground',
-                      pathname === item.href && 'bg-accent text-accent-foreground'
-                    )}
-                  >
-                    <Icon className="h-4 w-4" />
-                    {item.label}
-                  </Link>
-                )
-              })}
+    <>
+      {/* Desktop Navigation - Hidden on mobile */}
+      <div className="hidden lg:block">
+        <DesktopNavigation />
+      </div>
+      
+      {/* Mobile Navigation - Hidden on desktop */}
+      <div className="lg:hidden border-b">
+        <div className="flex h-16 items-center px-4 container mx-auto">
+          {/* Hamburger Menu Button */}
+          <Sheet open={isOpen} onOpenChange={setIsOpen}>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <Menu className="h-5 w-5" />
+                <span className="sr-only">Toggle menu</span>
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="w-[300px] sm:w-[350px]">
+              <SheetHeader className="pb-6 border-b">
+                <SheetTitle>
+                  <div className="flex items-center space-x-2">
+                    <CreditCard className="h-6 w-6 text-primary" />
+                    <span>Bank Analyzer</span>
+                  </div>
+                </SheetTitle>
+              </SheetHeader>
               
-              <div className="border-t pt-4 mt-4">
-                <Link
-                  href="/"
-                  onClick={() => setIsOpen(false)}
-                  className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
-                >
-                  <Plus className="h-4 w-4" />
-                  Add Card
-                </Link>
-              </div>
-            </nav>
-          </SheetContent>
-        </Sheet>
+              {/* Mobile Navigation Content */}
+              <nav className="flex flex-col gap-2 mt-6">
+                {/* Main Navigation Items */}
+                {mainNavItems.map((item) => {
+                  const Icon = item.icon
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={() => setIsOpen(false)}
+                      className={cn(
+                        'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground',
+                        pathname === item.href && 'bg-accent text-accent-foreground'
+                      )}
+                    >
+                      <Icon className="h-4 w-4" />
+                      {item.label}
+                    </Link>
+                  )
+                })}
+                
+                {/* Analytics Sub-items */}
+                <div className="ml-4 mt-2 space-y-1">
+                  <div className="text-xs font-medium text-muted-foreground px-3 py-1">
+                    Analytics
+                  </div>
+                  {analyticsSubItems.map((item) => {
+                    const Icon = item.icon
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        onClick={() => setIsOpen(false)}
+                        className={cn(
+                          'flex items-center gap-3 rounded-lg px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground',
+                          pathname === item.href && 'bg-accent text-accent-foreground'
+                        )}
+                      >
+                        <Icon className="h-3 w-3" />
+                        {item.label}
+                      </Link>
+                    )
+                  })}
+                </div>
+                
+                {/* Cards Section */}
+                {cards.length > 0 && (
+                  <div className="border-t pt-4 mt-4">
+                    <div className="text-xs font-medium text-muted-foreground px-3 py-1 mb-2">
+                      Your Cards
+                    </div>
+                    <div className="space-y-1 max-h-[200px] overflow-y-auto">
+                      {cards.map((card) => (
+                        <Link
+                          key={card.id}
+                          href={`/cards/${card.id}`}
+                          onClick={() => setIsOpen(false)}
+                          className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground"
+                        >
+                          <div 
+                            className="w-3 h-3 rounded-full flex-shrink-0" 
+                            style={{ backgroundColor: card.color }}
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium truncate text-sm">
+                              {card.name}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {card.type} {card.lastFour && `•••• ${card.lastFour}`}
+                            </div>
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Add Card Button */}
+                <div className="border-t pt-4 mt-4">
+                  <Link
+                    href="/"
+                    onClick={() => setIsOpen(false)}
+                    className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Add Card
+                  </Link>
+                </div>
+              </nav>
+            </SheetContent>
+          </Sheet>
 
-        {/* Logo - Centered or next to hamburger */}
-        <Link href="/" className="flex items-center space-x-2 ml-2">
-          <CreditCard className="h-6 w-6" />
-          <span className="text-lg font-bold">Bank Analyzer</span>
-        </Link>
-        
-        {/* Right side items */}
-        <div className="ml-auto flex items-center space-x-4">
-          <NotificationDropdown />
+          {/* Logo */}
+          <Link href="/" className="flex items-center space-x-2 ml-2">
+            <CreditCard className="h-6 w-6" />
+            <span className="text-lg font-bold">Bank Analyzer</span>
+          </Link>
           
-          <Button asChild>
-            <Link href="/">
-              <Plus className="h-4 w-4 mr-2" />
-              <span className="hidden sm:inline">Add Card</span>
-            </Link>
-          </Button>
-          
-          <UserButton afterSignOutUrl="/sign-in" />
+          {/* Right side items */}
+          <div className="ml-auto flex items-center space-x-4">
+            <NotificationDropdown />
+            
+            <Button asChild size="sm">
+              <Link href="/">
+                <Plus className="h-4 w-4" />
+                <span className="sr-only">Add Card</span>
+              </Link>
+            </Button>
+            
+            <UserButton afterSignOutUrl="/sign-in" />
+          </div>
         </div>
       </div>
-    </div>
+    </>
   )
 }
