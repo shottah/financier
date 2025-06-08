@@ -181,7 +181,7 @@ export default function AnalyticsContent({
       <AnalyticsTabs selectedTab={selectedTabValue}>
         <TabsContent value="overview" className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <MonthlyTrendChart data={monthlyData} />
+            <MonthlyTrendChart data={monthlyData} statementData={statementData} />
             <CategoryPieChart data={categoryData} />
           </div>
           
@@ -257,7 +257,10 @@ function MetricCard({
   )
 }
 
-function MonthlyTrendChart({ data }: { data: Array<{month: string, income: number, spending: number, endBalance: number}> }) {
+function MonthlyTrendChart({ data, statementData }: { 
+  data: Array<{month: string, income: number, spending: number, endBalance: number}>
+  statementData: Array<{id: string, cardName: string, month: string, inflows: number, outflows: number, period: string}>
+}) {
   // Transform data for Recharts
   const chartData = data.slice(0, 6).map(d => ({
     month: d.month,
@@ -266,18 +269,44 @@ function MonthlyTrendChart({ data }: { data: Array<{month: string, income: numbe
     'Amount Owing': Math.round(d.endBalance)
   }))
   
+  // Handle bar click to open statement
+  const handleBarClick = (data: any) => {
+    if (data && data.activeLabel) {
+      const monthStatements = statementData.filter(s => s.month === data.activeLabel)
+      if (monthStatements.length === 1) {
+        // Single statement - open directly
+        window.open(`/statements/${monthStatements[0].id}`, '_blank')
+      } else if (monthStatements.length > 1) {
+        // Multiple statements - open the first one
+        window.open(`/statements/${monthStatements[0].id}`, '_blank')
+      }
+    }
+  }
+  
   // Custom tooltip
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
+      // Find all statements for this month
+      const monthStatements = statementData.filter(s => s.month === label)
       return (
         <div className="bg-background p-3 border rounded-md shadow-sm">
           <p className="text-sm font-medium mb-1">{label}</p>
+          {monthStatements.length > 0 && (
+            <p className="text-xs text-muted-foreground mb-2">
+              {monthStatements.map(s => s.cardName).join(', ')}
+            </p>
+          )}
           {payload.map((entry: any, index: number) => (
             <p key={index} className="text-sm">
               <span style={{ color: entry.color }}>{entry.name}: </span>
               <span className="font-medium">${entry.value.toLocaleString()}</span>
             </p>
           ))}
+          {monthStatements.length > 0 && (
+            <p className="text-xs text-muted-foreground mt-2 pt-2 border-t">
+              💡 Click to view statement{monthStatements.length > 1 ? 's' : ''}
+            </p>
+          )}
         </div>
       )
     }
@@ -293,7 +322,11 @@ function MonthlyTrendChart({ data }: { data: Array<{month: string, income: numbe
       <CardContent>
         <div className="h-80 w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+            <ComposedChart 
+              data={chartData} 
+              margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+              onClick={handleBarClick}
+            >
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
               <XAxis 
                 dataKey="month" 
@@ -311,8 +344,18 @@ function MonthlyTrendChart({ data }: { data: Array<{month: string, income: numbe
                 iconType="square"
                 formatter={(value) => <span className="text-sm text-muted-foreground">{value}</span>}
               />
-              <Bar dataKey="Charges" fill="#ef4444" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="Payments" fill="#22c55e" radius={[4, 4, 0, 0]} />
+              <Bar 
+                dataKey="Charges" 
+                fill="#ef4444" 
+                radius={[4, 4, 0, 0]}
+                style={{ cursor: 'pointer' }}
+              />
+              <Bar 
+                dataKey="Payments" 
+                fill="#22c55e" 
+                radius={[4, 4, 0, 0]}
+                style={{ cursor: 'pointer' }}
+              />
               <Line type="monotone" dataKey="Amount Owing" stroke="#8b5cf6" strokeWidth={2} dot={{ fill: '#8b5cf6' }} />
             </ComposedChart>
           </ResponsiveContainer>
