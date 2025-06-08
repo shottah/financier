@@ -258,7 +258,7 @@ function MetricCard({
 }
 
 function MonthlyTrendChart({ data, statementData }: { 
-  data: Array<{month: string, income: number, spending: number, startBalance: number}>
+  data: Array<{month: string, income: number, spending: number, endBalance: number}>
   statementData: Array<{id: string, cardName: string, month: string, inflows: number, outflows: number, period: string}>
 }) {
   // Transform data for Recharts
@@ -266,7 +266,7 @@ function MonthlyTrendChart({ data, statementData }: {
     month: d.month,
     Charges: Math.round(d.spending),
     Payments: Math.round(d.income),
-    'Starting Balance': Math.round(d.startBalance)
+    'Closing Balance': Math.round(d.endBalance)
   }))
   
   // Handle bar click to open statement
@@ -356,7 +356,7 @@ function MonthlyTrendChart({ data, statementData }: {
                 radius={[4, 4, 0, 0]}
                 style={{ cursor: 'pointer' }}
               />
-              <Line type="monotone" dataKey="Starting Balance" stroke="#8b5cf6" strokeWidth={2} dot={{ fill: '#8b5cf6' }} />
+              <Line type="monotone" dataKey="Closing Balance" stroke="#8b5cf6" strokeWidth={2} dot={{ fill: '#8b5cf6' }} />
             </ComposedChart>
           </ResponsiveContainer>
         </div>
@@ -853,18 +853,18 @@ function calculateMetrics(cards: PopulatedCard[]) {
 
 function getMonthlyData(cards: PopulatedCard[]) {
   // Group transactions by month
-  const monthlyData: Record<string, { income: number, spending: number, startBalance: number }> = {}
+  const monthlyData: Record<string, { income: number, spending: number, endBalance: number }> = {}
   
   cards.forEach(card => {
     card.statements?.forEach(statement => {
       if (statement.year && statement.month) {
         const monthKey = `${statement.year}-${statement.month.toString().padStart(2, '0')}`
         if (!monthlyData[monthKey]) {
-          monthlyData[monthKey] = { income: 0, spending: 0, startBalance: 0 }
+          monthlyData[monthKey] = { income: 0, spending: 0, endBalance: 0 }
         }
         monthlyData[monthKey].income += statement.totalCredit || 0
         monthlyData[monthKey].spending += statement.totalDebit || 0
-        monthlyData[monthKey].startBalance += statement.startBalance || 0
+        monthlyData[monthKey].endBalance += statement.endBalance || 0
       }
     })
   })
