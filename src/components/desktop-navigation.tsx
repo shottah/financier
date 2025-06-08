@@ -162,7 +162,7 @@ export function DesktopNavigation() {
   }
 
   return (
-    <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 relative z-50">
       <div className="flex h-16 items-center px-4 container mx-auto">
         {/* Logo */}
         <Link href="/" className="flex items-center space-x-2 mr-8">
@@ -171,7 +171,7 @@ export function DesktopNavigation() {
         </Link>
         
         {/* Main Navigation */}
-        <NavigationMenu className="hidden md:flex">
+        <NavigationMenu className="hidden md:flex z-50">
           <NavigationMenuList>
             {/* Dashboard */}
             <NavigationMenuItem>
@@ -196,7 +196,7 @@ export function DesktopNavigation() {
                 <CreditCard className="h-4 w-4 mr-2" />
                 Cards
               </NavigationMenuTrigger>
-              <NavigationMenuContent>
+              <NavigationMenuContent className="z-50">
                 <div className="w-[400px] p-4">
                   <div className="grid gap-3">
                     <div className="grid gap-1">
@@ -283,7 +283,7 @@ export function DesktopNavigation() {
                 <BarChart className="h-4 w-4 mr-2" />
                 Analytics
               </NavigationMenuTrigger>
-              <NavigationMenuContent>
+              <NavigationMenuContent className="z-50">
                 <div className="w-[350px] p-4">
                   <div className="grid gap-3">
                     <div className="grid gap-1">
