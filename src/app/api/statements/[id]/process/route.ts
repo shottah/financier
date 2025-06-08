@@ -181,10 +181,15 @@ export async function POST(
       data: { status: 'PROCESSING' },
     })
 
-    // Fetch the PDF file from Vercel Blob
-    const response = await fetch(statement.filePath)
+    // Fetch the PDF file from blob storage
+    const fileUrl = statement.blobUrl || statement.filePath
+    if (!fileUrl) {
+      throw new Error('No file URL available for processing')
+    }
+    
+    const response = await fetch(fileUrl)
     if (!response.ok) {
-      throw new Error('Failed to fetch PDF from blob storage')
+      throw new Error(`Failed to fetch PDF from blob storage: ${response.status} ${response.statusText}`)
     }
     const arrayBuffer = await response.arrayBuffer()
     const dataBuffer = Buffer.from(arrayBuffer)
