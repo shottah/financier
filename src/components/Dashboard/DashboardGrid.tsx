@@ -371,6 +371,7 @@ export function DashboardGrid({ userId }: DashboardGridProps) {
         </div>
       </div>
 
+      {/* @ts-ignore - ResponsiveGridLayout has complex type inference issues */}
       <ResponsiveGridLayout
         className={`layout ${isDragging ? 'is-dragging' : ''}`}
         layouts={layouts}

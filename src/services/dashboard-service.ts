@@ -164,7 +164,7 @@ export class DashboardService {
     })
 
     return result
-      .map(r => r.category)
+      .map(r => (r as any).category)
       .filter((category): category is string => category !== null)
   }
 
@@ -209,7 +209,7 @@ export class DashboardService {
       weeklyData.push({
         week: format(weekStart, 'MMM dd'),
         weekNumber: i + 1,
-        amount: result._sum.amount || 0
+        amount: (result._sum as any)?.amount || 0
       })
     }
 
@@ -257,7 +257,7 @@ export class DashboardService {
       monthlyData.push({
         month: format(month, 'MMM'),
         monthNumber: i + 1,
-        amount: result._sum.amount || 0
+        amount: (result._sum as any)?.amount || 0
       })
     }
 
@@ -301,7 +301,7 @@ export class DashboardService {
         }
       })
 
-      monthlyData.push(result._sum.amount || 0)
+      monthlyData.push((result._sum as any)?.amount || 0)
     }
 
     return monthlyData
@@ -375,8 +375,8 @@ export class DashboardService {
       }
     })
 
-    const currentTotal = currentMonthSpending._sum.amount || 0
-    const lastTotal = lastMonthSpending._sum.amount || 0
+    const currentTotal = (currentMonthSpending._sum as any)?.amount || 0
+    const lastTotal = (lastMonthSpending._sum as any)?.amount || 0
     const monthlyChange = lastTotal > 0 ? ((currentTotal - lastTotal) / lastTotal) * 100 : 0
 
     return {
@@ -435,7 +435,7 @@ export class DashboardService {
         }
       })
       
-      const expenses = monthExpenses._sum.amount || 0
+      const expenses = (monthExpenses._sum as any)?.amount || 0
       
       monthlyData.push({
         month: format(month, 'MMM'),
@@ -481,7 +481,7 @@ export class DashboardService {
       distinct: ['category']
     })
     
-    const uniqueCategories = [...new Set(categories.map(c => c.category).filter(Boolean))]
+    const uniqueCategories = Array.from(new Set(categories.map(c => c.category).filter(Boolean) as string[]))
     return uniqueCategories.sort()
   }
 }
