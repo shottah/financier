@@ -1,12 +1,15 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { requireUser } from '@/lib/auth'
 import { DashboardService } from '@/services/dashboard-service'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const user = await requireUser()
+    const searchParams = request.nextUrl.searchParams
+    const year = searchParams.get('year')
+    const category = searchParams.get('category')
     
-    const categoryTrends = await DashboardService.getYearOverYearTrends(user.id)
+    const categoryTrends = await DashboardService.getYearOverYearTrends(user.id, year, category)
     
     return NextResponse.json({
       categoryTrends

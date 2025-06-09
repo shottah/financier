@@ -130,58 +130,81 @@ export class DashboardService {
   }
 
   /**
+   * Parse year string into date objects
+   */
+  private static parseYear(yearStr: string | null | undefined) {
+    if (!yearStr) {
+      const now = new Date()
+      return {
+        currentYearStart: startOfYear(now),
+        currentYearEnd: endOfYear(now),
+        lastYearStart: startOfYear(subYears(now, 1)),
+        lastYearEnd: endOfYear(subYears(now, 1))
+      }
+    }
+
+    const yearNum = parseInt(yearStr, 10)
+    const selectedYearStart = new Date(yearNum, 0, 1)
+    const selectedYearEnd = endOfYear(selectedYearStart)
+    const previousYearStart = startOfYear(subYears(selectedYearStart, 1))
+    const previousYearEnd = endOfYear(subYears(selectedYearStart, 1))
+    
+    return {
+      currentYearStart: selectedYearStart,
+      currentYearEnd: selectedYearEnd,
+      lastYearStart: previousYearStart,
+      lastYearEnd: previousYearEnd
+    }
+  }
+
+  /**
    * Get year-over-year category trends 
    */
-  static async getYearOverYearTrends(userId: string): Promise<CategoryTrend[]> {
-    const now = new Date()
-    const currentYearStart = startOfYear(now)
-    const currentYearEnd = endOfYear(now)
-    const lastYearStart = startOfYear(subYears(now, 1))
-    const lastYearEnd = endOfYear(subYears(now, 1))
-
-    // Get top categories based on current year spending
-    const topCategories = await this.getTopCategories(userId, currentYearStart, currentYearEnd, 3)
+  static async getYearOverYearTrends(userId: string, year?: string | null, category?: string | null | undefined): Promise<CategoryTrend[]> {
+    const { currentYearStart, currentYearEnd, lastYearStart, lastYearEnd } = this.parseYear(year)
     
     const categoryTrends: CategoryTrend[] = []
 
-    for (const categoryName of topCategories) {
-      // Get monthly yearly data
-      const currentYearData = await this.getMonthlySpendingStructured(
-        userId, 
-        categoryName, 
-        currentYearStart, 
-        currentYearEnd
-      )
-      const lastYearData = await this.getMonthlySpendingStructured(
-        userId, 
-        categoryName, 
-        lastYearStart, 
-        lastYearEnd
-      )
+    // Determine category to use (specific category or all expenses)
+    const categoryFilter = category || ''
+    const categoryName = category || 'All Expenses'
 
-      // Calculate totals
-      const totalCurrentYear = currentYearData.reduce((sum, month) => sum + month.amount, 0)
-      const totalLastYear = lastYearData.reduce((sum, month) => sum + month.amount, 0)
+    // Get monthly yearly data for the specified category (or all if empty)
+    const currentYearData = await this.getMonthlySpendingStructured(
+      userId, 
+      categoryFilter,
+      currentYearStart, 
+      currentYearEnd
+    )
+    const lastYearData = await this.getMonthlySpendingStructured(
+      userId, 
+      categoryFilter,
+      lastYearStart, 
+      lastYearEnd
+    )
 
-      // Calculate percentage changes
-      const yearChange = totalLastYear > 0 
-        ? ((totalCurrentYear - totalLastYear) / totalLastYear) * 100 
-        : 0
+    // Calculate totals
+    const totalCurrentYear = currentYearData.reduce((sum, month) => sum + month.amount, 0)
+    const totalLastYear = lastYearData.reduce((sum, month) => sum + month.amount, 0)
 
-      categoryTrends.push({
-        category: categoryName,
-        currentQuarter: [], // Not needed for this view
-        lastQuarter: [], // Not needed for this view
-        currentYear: currentYearData,
-        lastYear: lastYearData,
-        totalCurrentQuarter: 0, // Not needed for this view
-        totalLastQuarter: 0, // Not needed for this view
-        totalCurrentYear,
-        totalLastYear,
-        quarterChange: 0, // Not needed for this view
-        yearChange
-      })
-    }
+    // Calculate percentage changes
+    const yearChange = totalLastYear > 0 
+      ? ((totalCurrentYear - totalLastYear) / totalLastYear) * 100 
+      : 0
+
+    categoryTrends.push({
+      category: categoryName,
+      currentQuarter: [], // Not needed for this view
+      lastQuarter: [], // Not needed for this view
+      currentYear: currentYearData,
+      lastYear: lastYearData,
+      totalCurrentQuarter: 0, // Not needed for this view
+      totalLastQuarter: 0, // Not needed for this view
+      totalCurrentYear,
+      totalLastYear,
+      quarterChange: 0, // Not needed for this view
+      yearChange
+    })
 
     return categoryTrends.sort((a, b) => b.totalCurrentYear - a.totalCurrentYear)
   }
