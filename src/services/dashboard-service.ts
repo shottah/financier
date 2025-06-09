@@ -43,18 +43,97 @@ interface CategoryTrend {
 
 export class DashboardService {
   /**
+   * Parse quarter string (e.g., "2024-Q1") into date objects
+   */
+  private static parseQuarter(quarterStr: string | null | undefined) {
+    if (!quarterStr) {
+      const now = new Date()
+      return {
+        currentQuarterStart: startOfQuarter(now),
+        currentQuarterEnd: endOfQuarter(now),
+        lastQuarterStart: startOfQuarter(subQuarters(now, 1)),
+        lastQuarterEnd: endOfQuarter(subQuarters(now, 1))
+      }
+    }
+
+    const [year, quarter] = quarterStr.split('-Q')
+    const yearNum = parseInt(year, 10)
+    const quarterNum = parseInt(quarter, 10)
+    
+    // Calculate the selected quarter start/end
+    const quarterStartMonth = (quarterNum - 1) * 3
+    const selectedQuarterStart = new Date(yearNum, quarterStartMonth, 1)
+    const selectedQuarterEnd = endOfQuarter(selectedQuarterStart)
+    
+    // Calculate previous quarter
+    const previousQuarterStart = startOfQuarter(subQuarters(selectedQuarterStart, 1))
+    const previousQuarterEnd = endOfQuarter(subQuarters(selectedQuarterStart, 1))
+    
+    return {
+      currentQuarterStart: selectedQuarterStart,
+      currentQuarterEnd: selectedQuarterEnd,
+      lastQuarterStart: previousQuarterStart,
+      lastQuarterEnd: previousQuarterEnd
+    }
+  }
+
+  /**
    * Get category trends with quarter-over-quarter and year-over-year comparisons
    */
-  static async getCategoryTrends(userId: string): Promise<CategoryTrend[]> {
+  static async getCategoryTrends(userId: string, quarter?: string | null, category?: string | null | undefined): Promise<CategoryTrend[]> {
+    const { currentQuarterStart, currentQuarterEnd, lastQuarterStart, lastQuarterEnd } = this.parseQuarter(quarter)
+    
+    const categoryTrends: CategoryTrend[] = []
+
+    // Determine category to use (specific category or all expenses)
+    const categoryFilter = category || ''
+    const categoryName = category || 'All Expenses'
+
+    // Get expenses data for the specified category (or all if empty)
+    const currentQuarterData = await this.getWeeklySpending(
+      userId, 
+      categoryFilter,
+      currentQuarterStart, 
+      currentQuarterEnd
+    )
+    const lastQuarterData = await this.getWeeklySpending(
+      userId, 
+      categoryFilter,
+      lastQuarterStart, 
+      lastQuarterEnd
+    )
+
+    // Calculate totals
+    const totalCurrentQuarter = currentQuarterData.reduce((sum, week) => sum + week.amount, 0)
+    const totalLastQuarter = lastQuarterData.reduce((sum, week) => sum + week.amount, 0)
+
+    // Calculate percentage changes
+    const quarterChange = totalLastQuarter > 0 
+      ? ((totalCurrentQuarter - totalLastQuarter) / totalLastQuarter) * 100 
+      : 0
+
+    categoryTrends.push({
+      category: categoryName,
+      currentQuarter: currentQuarterData,
+      lastQuarter: lastQuarterData,
+      currentYear: [], // Not needed for this view
+      lastYear: [], // Not needed for this view
+      totalCurrentQuarter,
+      totalLastQuarter,
+      totalCurrentYear: 0, // Not needed for this view
+      totalLastYear: 0, // Not needed for this view
+      quarterChange,
+      yearChange: 0 // Not needed for this view
+    })
+
+    return categoryTrends.sort((a, b) => b.totalCurrentYear - a.totalCurrentYear)
+  }
+
+  /**
+   * Get year-over-year category trends 
+   */
+  static async getYearOverYearTrends(userId: string): Promise<CategoryTrend[]> {
     const now = new Date()
-    
-    // Define time periods
-    const currentQuarterStart = startOfQuarter(now)
-    const currentQuarterEnd = endOfQuarter(now)
-    const lastQuarterStart = startOfQuarter(subQuarters(now, 1))
-    const lastQuarterEnd = endOfQuarter(subQuarters(now, 1))
-    
-    
     const currentYearStart = startOfYear(now)
     const currentYearEnd = endOfYear(now)
     const lastYearStart = startOfYear(subYears(now, 1))
@@ -66,21 +145,7 @@ export class DashboardService {
     const categoryTrends: CategoryTrend[] = []
 
     for (const categoryName of topCategories) {
-      // Get weekly quarterly data
-      const currentQuarterData = await this.getWeeklySpending(
-        userId, 
-        categoryName, 
-        currentQuarterStart, 
-        currentQuarterEnd
-      )
-      const lastQuarterData = await this.getWeeklySpending(
-        userId, 
-        categoryName, 
-        lastQuarterStart, 
-        lastQuarterEnd
-      )
-
-      // Get yearly data (monthly for the year)
+      // Get monthly yearly data
       const currentYearData = await this.getMonthlySpendingStructured(
         userId, 
         categoryName, 
@@ -95,30 +160,25 @@ export class DashboardService {
       )
 
       // Calculate totals
-      const totalCurrentQuarter = currentQuarterData.reduce((sum, week) => sum + week.amount, 0)
-      const totalLastQuarter = lastQuarterData.reduce((sum, week) => sum + week.amount, 0)
       const totalCurrentYear = currentYearData.reduce((sum, month) => sum + month.amount, 0)
       const totalLastYear = lastYearData.reduce((sum, month) => sum + month.amount, 0)
 
       // Calculate percentage changes
-      const quarterChange = totalLastQuarter > 0 
-        ? ((totalCurrentQuarter - totalLastQuarter) / totalLastQuarter) * 100 
-        : 0
       const yearChange = totalLastYear > 0 
         ? ((totalCurrentYear - totalLastYear) / totalLastYear) * 100 
         : 0
 
       categoryTrends.push({
         category: categoryName,
-        currentQuarter: currentQuarterData,
-        lastQuarter: lastQuarterData,
+        currentQuarter: [], // Not needed for this view
+        lastQuarter: [], // Not needed for this view
         currentYear: currentYearData,
         lastYear: lastYearData,
-        totalCurrentQuarter,
-        totalLastQuarter,
+        totalCurrentQuarter: 0, // Not needed for this view
+        totalLastQuarter: 0, // Not needed for this view
         totalCurrentYear,
         totalLastYear,
-        quarterChange,
+        quarterChange: 0, // Not needed for this view
         yearChange
       })
     }
@@ -187,20 +247,26 @@ export class DashboardService {
       const weekStart = startOfWeek(week, { weekStartsOn: 1 })
       const weekEnd = endOfWeek(week, { weekStartsOn: 1 })
 
-      const result = await db.transaction.aggregate({
-        where: {
-          statement: {
-            card: {
-              userId
-            }
-          },
-          type: 'DEBIT',
-          category,
-          date: {
-            gte: weekStart,
-            lte: weekEnd
+      const whereClause: any = {
+        statement: {
+          card: {
+            userId
           }
         },
+        type: 'DEBIT',
+        date: {
+          gte: weekStart,
+          lte: weekEnd
+        }
+      }
+
+      // Only add category filter if category is provided and not empty
+      if (category && category.trim() !== '') {
+        whereClause.category = category
+      }
+
+      const result = await db.transaction.aggregate({
+        where: whereClause,
         _sum: {
           amount: true
         }
@@ -235,20 +301,26 @@ export class DashboardService {
       const monthStart = startOfMonth(month)
       const monthEnd = endOfMonth(month)
 
-      const result = await db.transaction.aggregate({
-        where: {
-          statement: {
-            card: {
-              userId
-            }
-          },
-          type: 'DEBIT',
-          category,
-          date: {
-            gte: monthStart,
-            lte: monthEnd
+      const whereClause: any = {
+        statement: {
+          card: {
+            userId
           }
         },
+        type: 'DEBIT',
+        date: {
+          gte: monthStart,
+          lte: monthEnd
+        }
+      }
+
+      // Only add category filter if category is provided and not empty
+      if (category && category.trim() !== '') {
+        whereClause.category = category
+      }
+
+      const result = await db.transaction.aggregate({
+        where: whereClause,
         _sum: {
           amount: true
         }

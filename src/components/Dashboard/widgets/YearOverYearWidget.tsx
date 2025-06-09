@@ -35,7 +35,7 @@ export function YearOverYearWidget({ userId }: YearOverYearWidgetProps) {
 
   const fetchDashboardData = async () => {
     try {
-      const response = await fetch('/api/dashboard/analytics')
+      const response = await fetch('/api/dashboard/year-over-year')
       const data = await response.json()
       setTrends(data.categoryTrends || [])
     } catch (error) {
