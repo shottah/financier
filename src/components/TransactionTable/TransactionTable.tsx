@@ -87,10 +87,11 @@ export default function TransactionTable({
   const [isUpdating, setIsUpdating] = useState(false)
   const { toast } = useToast()
 
-  // Get unique years and months from transactions
-  const { uniqueYears, uniqueMonths } = useMemo(() => {
+  // Get unique years, months, and cards from transactions
+  const { uniqueYears, uniqueMonths, uniqueCards } = useMemo(() => {
     const years = new Set<string>()
     const months = new Set<string>()
+    const cards = new Map<string, { name: string; color: string }>()
     const monthNames = [
       'January', 'February', 'March', 'April', 'May', 'June',
       'July', 'August', 'September', 'October', 'November', 'December'
@@ -99,8 +100,16 @@ export default function TransactionTable({
     transactions.forEach(tx => {
       const date = new Date(tx.date)
       years.add(date.getFullYear().toString())
-      const monthIndex = date.getMonth()
+      const monthIndex = date.getMonth() // 0-indexed (0 = January, 11 = December)
       months.add(`${monthIndex}:${monthNames[monthIndex]}`)
+      
+      // Collect unique cards
+      if (tx.statement?.card) {
+        cards.set(tx.statement.card.name, {
+          name: tx.statement.card.name,
+          color: tx.statement.card.color
+        })
+      }
     })
     
     return {
@@ -109,7 +118,8 @@ export default function TransactionTable({
         const [aIndex] = a.split(':')
         const [bIndex] = b.split(':')
         return parseInt(aIndex) - parseInt(bIndex)
-      })
+      }),
+      uniqueCards: Array.from(cards.values())
     }
   }, [transactions])
 
@@ -191,7 +201,7 @@ export default function TransactionTable({
           const date = row.getValue('date') as string | Date
           return (
             <div className="font-medium">
-              {format(new Date(date), 'MMM dd, yyyy')}
+              {format(new Date(date), 'MMMM dd, yyyy')}
             </div>
           )
         },
@@ -384,6 +394,9 @@ export default function TransactionTable({
             </div>
           ) : null
         },
+        filterFn: (row, id, value) => {
+          return value === row.getValue(id)
+        },
       })
     }
 
@@ -554,6 +567,29 @@ export default function TransactionTable({
             <SelectItem value="CREDIT">Credit</SelectItem>
           </SelectContent>
         </Select>
+        {showCard && uniqueCards.length > 0 && (
+          <Select
+            value={(table.getColumn('statement.card.name')?.getFilterValue() as string) ?? ''}
+            onValueChange={(value) =>
+              table.getColumn('statement.card.name')?.setFilterValue(value === 'all' ? '' : value)
+            }
+          >
+            <SelectTrigger className="w-[150px]">
+              <SelectValue placeholder="Card" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Cards</SelectItem>
+              {uniqueCards.map(card => (
+                <SelectItem key={card.name} value={card.name}>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: card.color }} />
+                    <span>{card.name}</span>
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" className="ml-auto">

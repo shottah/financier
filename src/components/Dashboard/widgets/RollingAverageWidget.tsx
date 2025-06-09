@@ -272,7 +272,7 @@ export function RollingAverageWidget({ userId }: RollingAverageWidgetProps) {
               const catData = categoryData[category] || []
               const monthsWithAverage = catData.filter(d => d.rollingAverage !== null)
               const catCurrentAverage = monthsWithAverage.length > 0 
-                ? monthsWithAverage[monthsWithAverage.length - 1].rollingAverage 
+                ? monthsWithAverage[monthsWithAverage.length - 1].rollingAverage || 0
                 : 0
               
               return (

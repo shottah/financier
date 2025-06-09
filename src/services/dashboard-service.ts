@@ -296,7 +296,7 @@ export class DashboardService {
       })
 
       weeklyData.push({
-        week: format(weekStart, 'MMM dd'),
+        week: format(weekStart, 'MMMM dd'),
         weekNumber: i + 1,
         amount: (result._sum as any)?.amount || 0
       })
@@ -350,7 +350,7 @@ export class DashboardService {
       })
 
       monthlyData.push({
-        month: format(month, 'MMM'),
+        month: format(month, 'MMMM'),
         monthNumber: i + 1,
         amount: (result._sum as any)?.amount || 0
       })
@@ -533,7 +533,7 @@ export class DashboardService {
       const expenses = (monthExpenses._sum as any)?.amount || 0
       
       monthlyData.push({
-        month: format(month, 'MMM'),
+        month: format(month, 'MMMM'),
         monthNumber: month.getMonth() + 1,
         year: month.getFullYear(),
         expenses,
